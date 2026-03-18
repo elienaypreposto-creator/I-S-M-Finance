@@ -1,22 +1,46 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ISM Tecnologia Financial System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: dashboard
+    description: Dashboard KPIs and charts
+  - name: lancamentos
+    description: Financial entries
+  - name: parceiros
+    description: Partners (clients, suppliers, etc.)
+  - name: contas-bancarias
+    description: Bank accounts
+  - name: plano-contas
+    description: Chart of accounts
+  - name: metas
+    description: Financial goals/targets
+  - name: conciliacao
+    description: Bank reconciliation
+  - name: kanban
+    description: Kanban board
+  - name: relatorios
+    description: Reports
+  - name: usuarios
+    description: Users
+  - name: filiais
+    description: Branches
+  - name: tokens-api
+    description: API tokens
+  - name: departamentos
+    description: Departments and cost centers
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +48,1462 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /dashboard/kpis:
+    get:
+      operationId: getDashboardKpis
+      tags: [dashboard]
+      summary: Get dashboard KPI cards
+      responses:
+        "200":
+          description: KPI data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardKpis"
+
+  /dashboard/projecao-mes:
+    get:
+      operationId: getDashboardProjecaoMes
+      tags: [dashboard]
+      summary: Current month projection
+      responses:
+        "200":
+          description: Projecao do mes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjecaoMes"
+
+  /dashboard/projecao-dias:
+    get:
+      operationId: getDashboardProjecaoDias
+      tags: [dashboard]
+      parameters:
+        - name: dias
+          in: query
+          schema:
+            type: integer
+            enum: [15, 30, 60]
+            default: 30
+      summary: Cash flow projection for next N days
+      responses:
+        "200":
+          description: Projection data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjecaoDiaItem"
+
+  /dashboard/inadimplencia-clientes:
+    get:
+      operationId: getDashboardInadimplenciaClientes
+      tags: [dashboard]
+      parameters:
+        - name: tab
+          in: query
+          schema:
+            type: string
+            enum: [inadimplente, proximos_vencer, vencidos]
+            default: inadimplente
+      responses:
+        "200":
+          description: Client overdue data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InadimplenciaItem"
+
+  /dashboard/inadimplencia-fornecedores:
+    get:
+      operationId: getDashboardInadimplenciaFornecedores
+      tags: [dashboard]
+      parameters:
+        - name: tab
+          in: query
+          schema:
+            type: string
+            enum: [inadimplente, proximos_vencer, vencidos]
+            default: inadimplente
+      responses:
+        "200":
+          description: Supplier overdue data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InadimplenciaItem"
+
+  /dashboard/dias-atraso:
+    get:
+      operationId: getDashboardDiasAtraso
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Days overdue chart data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiasAtrasoItem"
+
+  /dashboard/nivel-risco:
+    get:
+      operationId: getDashboardNivelRisco
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Risk level data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NivelRiscoItem"
+
+  /dashboard/fluxo-caixa-mensal:
+    get:
+      operationId: getDashboardFluxoCaixaMensal
+      tags: [dashboard]
+      parameters:
+        - name: ano
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly cash flow bar chart data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FluxoCaixaMensalItem"
+
+  /dashboard/saidas-plano-contas:
+    get:
+      operationId: getDashboardSaidasPlanoContas
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Expenses by account plan
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanoContaDonutItem"
+
+  /dashboard/entradas-plano-contas:
+    get:
+      operationId: getDashboardEntradasPlanoContas
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Revenue by account plan
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanoContaDonutItem"
+
+  /lancamentos:
+    get:
+      operationId: getLancamentos
+      tags: [lancamentos]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [CP, CR]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, pago, recebido, atrasado, cancelado]
+        - name: conta_id
+          in: query
+          schema:
+            type: integer
+        - name: parceiro_id
+          in: query
+          schema:
+            type: integer
+        - name: data_inicio
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: data_fim
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of lancamentos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LancamentoListResponse"
+    post:
+      operationId: createLancamento
+      tags: [lancamentos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLancamento"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lancamento"
+
+  /lancamentos/{id}:
+    get:
+      operationId: getLancamento
+      tags: [lancamentos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Single lancamento
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lancamento"
+    put:
+      operationId: updateLancamento
+      tags: [lancamentos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLancamento"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lancamento"
+    delete:
+      operationId: deleteLancamento
+      tags: [lancamentos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /parceiros:
+    get:
+      operationId: getParceiros
+      tags: [parceiros]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: tipo
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of parceiros
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParceirosListResponse"
+    post:
+      operationId: createParceiro
+      tags: [parceiros]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateParceiro"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parceiro"
+
+  /parceiros/{id}:
+    get:
+      operationId: getParceiro
+      tags: [parceiros]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Single parceiro
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parceiro"
+    put:
+      operationId: updateParceiro
+      tags: [parceiros]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateParceiro"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parceiro"
+    delete:
+      operationId: deleteParceiro
+      tags: [parceiros]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /contas-bancarias:
+    get:
+      operationId: getContasBancarias
+      tags: [contas-bancarias]
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of bank accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContaBancaria"
+    post:
+      operationId: createContaBancaria
+      tags: [contas-bancarias]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContaBancaria"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContaBancaria"
+
+  /contas-bancarias/{id}:
+    put:
+      operationId: updateContaBancaria
+      tags: [contas-bancarias]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContaBancaria"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContaBancaria"
+    delete:
+      operationId: deleteContaBancaria
+      tags: [contas-bancarias]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /plano-contas:
+    get:
+      operationId: getPlanoContas
+      tags: [plano-contas]
+      responses:
+        "200":
+          description: Chart of accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanoContaItem"
+    post:
+      operationId: createPlanoContaItem
+      tags: [plano-contas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlanoContaItem"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanoContaItem"
+
+  /plano-contas/{id}:
+    put:
+      operationId: updatePlanoContaItem
+      tags: [plano-contas]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlanoContaItem"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanoContaItem"
+    delete:
+      operationId: deletePlanoContaItem
+      tags: [plano-contas]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /metas:
+    get:
+      operationId: getMetas
+      tags: [metas]
+      parameters:
+        - name: ano
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Goals for the year
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Meta"
+    post:
+      operationId: saveMeta
+      tags: [metas]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveMeta"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meta"
+
+  /conciliacoes:
+    get:
+      operationId: getConciliacoes
+      tags: [conciliacao]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pendente, conciliado]
+        - name: conta_id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of reconciliations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConciliacaoListResponse"
+
+  /conciliacoes/importar:
+    post:
+      operationId: importarConciliacao
+      tags: [conciliacao]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                conta_id:
+                  type: integer
+                arquivo:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Imported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conciliacao"
+
+  /conciliacoes/{id}:
+    get:
+      operationId: getConciliacao
+      tags: [conciliacao]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reconciliation detail with items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConciliacaoDetail"
+    delete:
+      operationId: deleteConciliacao
+      tags: [conciliacao]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /conciliacoes/{id}/conciliar:
+    post:
+      operationId: conciliar
+      tags: [conciliacao]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reconciled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conciliacao"
+
+  /conciliacoes/{id}/itens/{itemId}/ignorar:
+    post:
+      operationId: ignorarItemConciliacao
+      tags: [conciliacao]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Item ignored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemConciliacao"
+
+  /conciliacoes/{id}/itens/{itemId}/vincular:
+    post:
+      operationId: vincularItemConciliacao
+      tags: [conciliacao]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VincularItemConciliacao"
+      responses:
+        "200":
+          description: Linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ItemConciliacao"
+
+  /kanban/cards:
+    get:
+      operationId: getKanbanCards
+      tags: [kanban]
+      responses:
+        "200":
+          description: All kanban cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KanbanCard"
+    post:
+      operationId: createKanbanCard
+      tags: [kanban]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateKanbanCard"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KanbanCard"
+
+  /kanban/cards/{id}:
+    put:
+      operationId: updateKanbanCard
+      tags: [kanban]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateKanbanCard"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KanbanCard"
+    delete:
+      operationId: deleteKanbanCard
+      tags: [kanban]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /relatorios/fechamento-mensal:
+    get:
+      operationId: getRelatorioFechamentoMensal
+      tags: [relatorios]
+      parameters:
+        - name: mes
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: ano
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Monthly closing report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FechamentoMensalReport"
+
+  /relatorios/dre:
+    get:
+      operationId: getRelatorioDre
+      tags: [relatorios]
+      parameters:
+        - name: ano
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: regime
+          in: query
+          schema:
+            type: string
+            enum: [competencia, caixa]
+            default: competencia
+      responses:
+        "200":
+          description: DRE report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DreReport"
+
+  /relatorios/fluxo-caixa:
+    get:
+      operationId: getRelatorioFluxoCaixa
+      tags: [relatorios]
+      parameters:
+        - name: ano
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cash flow report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FluxoCaixaReport"
+
+  /relatorios/metas:
+    get:
+      operationId: getRelatorioMetas
+      tags: [relatorios]
+      parameters:
+        - name: ano
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Goals vs actual report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetasReport"
+
+  /relatorios/contabil-fiscal:
+    get:
+      operationId: getRelatorioContabilFiscal
+      tags: [relatorios]
+      parameters:
+        - name: data_inicio
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: data_fim
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: filial_id
+          in: query
+          schema:
+            type: integer
+        - name: conta_id
+          in: query
+          schema:
+            type: integer
+        - name: tipo
+          in: query
+          schema:
+            type: string
+            enum: [CP, CR, ambos]
+            default: ambos
+      responses:
+        "200":
+          description: Accounting/fiscal report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContabilFiscalItem"
+
+  /usuarios:
+    get:
+      operationId: getUsuarios
+      tags: [usuarios]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuariosListResponse"
+    post:
+      operationId: createUsuario
+      tags: [usuarios]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUsuario"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+
+  /usuarios/{id}:
+    put:
+      operationId: updateUsuario
+      tags: [usuarios]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUsuario"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+
+  /usuarios/{id}/permissoes:
+    get:
+      operationId: getUsuarioPermissoes
+      tags: [usuarios]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+    put:
+      operationId: updateUsuarioPermissoes
+      tags: [usuarios]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissoes:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - permissoes
+      responses:
+        "200":
+          description: Updated permissions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /filiais:
+    get:
+      operationId: getFiliais
+      tags: [filiais]
+      responses:
+        "200":
+          description: List of branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Filial"
+    post:
+      operationId: createFilial
+      tags: [filiais]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFilial"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Filial"
+
+  /filiais/{id}:
+    put:
+      operationId: updateFilial
+      tags: [filiais]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateFilial"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Filial"
+    delete:
+      operationId: deleteFilial
+      tags: [filiais]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /tokens-api:
+    get:
+      operationId: getTokensApi
+      tags: [tokens-api]
+      responses:
+        "200":
+          description: List of API tokens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TokenApi"
+    post:
+      operationId: createTokenApi
+      tags: [tokens-api]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTokenApi"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenApi"
+
+  /tokens-api/{id}:
+    put:
+      operationId: updateTokenApi
+      tags: [tokens-api]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTokenApi"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenApi"
+    delete:
+      operationId: deleteTokenApi
+      tags: [tokens-api]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /departamentos:
+    get:
+      operationId: getDepartamentos
+      tags: [departamentos]
+      responses:
+        "200":
+          description: List of departments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Departamento"
+    post:
+      operationId: createDepartamento
+      tags: [departamentos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDepartamento"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Departamento"
+
+  /departamentos/{id}:
+    put:
+      operationId: updateDepartamento
+      tags: [departamentos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDepartamento"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Departamento"
+    delete:
+      operationId: deleteDepartamento
+      tags: [departamentos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /centros-custos:
+    get:
+      operationId: getCentrosCustos
+      tags: [departamentos]
+      responses:
+        "200":
+          description: List of cost centers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CentroCusto"
+    post:
+      operationId: createCentroCusto
+      tags: [departamentos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCentroCusto"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CentroCusto"
+
+  /centros-custos/{id}:
+    put:
+      operationId: updateCentroCusto
+      tags: [departamentos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCentroCusto"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CentroCusto"
+    delete:
+      operationId: deleteCentroCusto
+      tags: [departamentos]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /v1/bancos:
+    get:
+      operationId: apiV1Bancos
+      tags: [tokens-api]
+      summary: PowerBI - List bank accounts
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Bank accounts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContaBancaria"
+
+  /v1/contasPagar:
+    get:
+      operationId: apiV1ContasPagar
+      tags: [tokens-api]
+      summary: PowerBI - List payables
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: Payables list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LancamentoListResponse"
+
+  /v1/contasReceber:
+    get:
+      operationId: apiV1ContasReceber
+      tags: [tokens-api]
+      summary: PowerBI - List receivables
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: Receivables list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LancamentoListResponse"
+
+  /v1/pessoas:
+    get:
+      operationId: apiV1Pessoas
+      tags: [tokens-api]
+      summary: PowerBI - List people/partners
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: People list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParceirosListResponse"
+
+  /v1/filiais:
+    get:
+      operationId: apiV1Filiais
+      tags: [tokens-api]
+      summary: PowerBI - List branches
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Branches list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Filial"
+
+  /v1/planoContas:
+    get:
+      operationId: apiV1PlanoContas
+      tags: [tokens-api]
+      summary: PowerBI - Chart of accounts
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Chart of accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanoContaItem"
+
+  /v1/categoriaPlanoConta:
+    get:
+      operationId: apiV1CategoriaPlanoConta
+      tags: [tokens-api]
+      summary: PowerBI - Account plan categories
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Categories list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlanoContaItem"
+
+  /v1/tipoDocumentos:
+    get:
+      operationId: apiV1TipoDocumentos
+      tags: [tokens-api]
+      summary: PowerBI - Document types
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Document types list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    nome:
+                      type: string
+                  required: [id, nome]
+
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +1513,1222 @@ components:
       required:
         - status
 
+    DashboardKpis:
+      type: object
+      properties:
+        contasReceberAtraso:
+          type: number
+        contasReceberAberto:
+          type: number
+        contasPagarAberto:
+          type: number
+        contasPagarAtraso:
+          type: number
+      required:
+        - contasReceberAtraso
+        - contasReceberAberto
+        - contasPagarAberto
+        - contasPagarAtraso
+
+    ProjecaoMes:
+      type: object
+      properties:
+        projecaoRecebimentos:
+          type: number
+        projecaoPagamentos:
+          type: number
+        projecaoLucroLiquido:
+          type: number
+        totalRecebimentos:
+          type: number
+        totalPagamentos:
+          type: number
+      required:
+        - projecaoRecebimentos
+        - projecaoPagamentos
+        - projecaoLucroLiquido
+        - totalRecebimentos
+        - totalPagamentos
+
+    ProjecaoDiaItem:
+      type: object
+      properties:
+        data:
+          type: string
+        saldo:
+          type: number
+        receber:
+          type: number
+        pagar:
+          type: number
+      required:
+        - data
+        - saldo
+        - receber
+        - pagar
+
+    InadimplenciaItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        valor:
+          type: number
+        vencimento:
+          type: string
+      required:
+        - id
+        - nome
+        - valor
+        - vencimento
+
+    DiasAtrasoItem:
+      type: object
+      properties:
+        nome:
+          type: string
+        dias:
+          type: integer
+        valor:
+          type: number
+      required:
+        - nome
+        - dias
+        - valor
+
+    NivelRiscoItem:
+      type: object
+      properties:
+        tipo:
+          type: string
+        quantidade:
+          type: integer
+        valor:
+          type: number
+      required:
+        - tipo
+        - quantidade
+        - valor
+
+    FluxoCaixaMensalItem:
+      type: object
+      properties:
+        mes:
+          type: string
+        entradas:
+          type: number
+        saidas:
+          type: number
+      required:
+        - mes
+        - entradas
+        - saidas
+
+    PlanoContaDonutItem:
+      type: object
+      properties:
+        categoria:
+          type: string
+        valor:
+          type: number
+        percentual:
+          type: number
+      required:
+        - categoria
+        - valor
+        - percentual
+
+
+    Lancamento:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          enum: [CP, CR]
+        vencimento:
+          type: string
+          format: date
+        competencia:
+          type: string
+          format: date
+        conta_id:
+          type: integer
+        conta_nome:
+          type: string
+        parceiro_id:
+          type: integer
+        parceiro_nome:
+          type: string
+        descricao:
+          type: string
+        valor:
+          type: number
+        status:
+          type: string
+          enum: [pendente, pago, recebido, atrasado, cancelado]
+        plano_conta_id:
+          type: integer
+        plano_conta_nome:
+          type: string
+        departamento_id:
+          type: integer
+        departamento_nome:
+          type: string
+        centro_custo_id:
+          type: integer
+        centro_custo_nome:
+          type: string
+        parcela_atual:
+          type: integer
+        total_parcelas:
+          type: integer
+        riscos:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - tipo
+        - vencimento
+        - valor
+        - status
+
+    CreateLancamento:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [CP, CR]
+        vencimento:
+          type: string
+          format: date
+        competencia:
+          type: string
+          format: date
+        conta_id:
+          type: integer
+        parceiro_id:
+          type: integer
+        descricao:
+          type: string
+        valor:
+          type: number
+        status:
+          type: string
+          enum: [pendente, pago, recebido, atrasado, cancelado]
+        plano_conta_id:
+          type: integer
+        departamento_id:
+          type: integer
+        centro_custo_id:
+          type: integer
+        parcela_atual:
+          type: integer
+        total_parcelas:
+          type: integer
+        riscos:
+          type: array
+          items:
+            type: string
+      required:
+        - tipo
+        - vencimento
+        - valor
+        - status
+
+    UpdateLancamento:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [CP, CR]
+        vencimento:
+          type: string
+          format: date
+        competencia:
+          type: string
+          format: date
+        conta_id:
+          type: integer
+        parceiro_id:
+          type: integer
+        descricao:
+          type: string
+        valor:
+          type: number
+        status:
+          type: string
+          enum: [pendente, pago, recebido, atrasado, cancelado]
+        plano_conta_id:
+          type: integer
+        departamento_id:
+          type: integer
+        centro_custo_id:
+          type: integer
+        riscos:
+          type: array
+          items:
+            type: string
+
+    LancamentoListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lancamento"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - data
+        - total
+        - page
+        - limit
+
+    Parceiro:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo_pessoa:
+          type: string
+          enum: [PF, PJ]
+        cpf_cnpj:
+          type: string
+        nome:
+          type: string
+        nome_fantasia:
+          type: string
+        tipos:
+          type: array
+          items:
+            type: string
+        departamento_id:
+          type: integer
+        centro_custo_id:
+          type: integer
+        ativo:
+          type: boolean
+        bloqueado:
+          type: boolean
+        chaves_pix:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChavePix"
+        dados_bancarios:
+          type: array
+          items:
+            $ref: "#/components/schemas/DadoBancario"
+        created_at:
+          type: string
+      required:
+        - id
+        - tipo_pessoa
+        - nome
+        - tipos
+        - ativo
+        - bloqueado
+
+    ChavePix:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          enum: [cpf, cnpj, email, telefone, aleatoria]
+        chave:
+          type: string
+      required:
+        - tipo
+        - chave
+
+    DadoBancario:
+      type: object
+      properties:
+        id:
+          type: integer
+        banco:
+          type: string
+        agencia:
+          type: string
+        digito_agencia:
+          type: string
+        conta:
+          type: string
+        digito_conta:
+          type: string
+      required:
+        - banco
+        - agencia
+        - conta
+
+    CreateParceiro:
+      type: object
+      properties:
+        tipo_pessoa:
+          type: string
+          enum: [PF, PJ]
+        cpf_cnpj:
+          type: string
+        nome:
+          type: string
+        nome_fantasia:
+          type: string
+        tipos:
+          type: array
+          items:
+            type: string
+        departamento_id:
+          type: integer
+        centro_custo_id:
+          type: integer
+        chaves_pix:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChavePix"
+        dados_bancarios:
+          type: array
+          items:
+            $ref: "#/components/schemas/DadoBancario"
+      required:
+        - tipo_pessoa
+        - nome
+        - tipos
+
+    UpdateParceiro:
+      type: object
+      properties:
+        tipo_pessoa:
+          type: string
+          enum: [PF, PJ]
+        cpf_cnpj:
+          type: string
+        nome:
+          type: string
+        nome_fantasia:
+          type: string
+        tipos:
+          type: array
+          items:
+            type: string
+        departamento_id:
+          type: integer
+        centro_custo_id:
+          type: integer
+        ativo:
+          type: boolean
+        bloqueado:
+          type: boolean
+        chaves_pix:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChavePix"
+        dados_bancarios:
+          type: array
+          items:
+            $ref: "#/components/schemas/DadoBancario"
+
+    ParceirosListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Parceiro"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - data
+        - total
+        - page
+        - limit
+
+    ContaBancaria:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          enum: [corrente, movimento, poupanca]
+        banco:
+          type: string
+        agencia:
+          type: string
+        digito_agencia:
+          type: string
+        conta:
+          type: string
+        digito_conta:
+          type: string
+        nome:
+          type: string
+        empresa:
+          type: string
+        saldo_inicial:
+          type: number
+        data_inicio:
+          type: string
+          format: date
+        saldo_atual:
+          type: number
+      required:
+        - id
+        - tipo
+        - nome
+
+    CreateContaBancaria:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [corrente, movimento, poupanca]
+        banco:
+          type: string
+        agencia:
+          type: string
+        digito_agencia:
+          type: string
+        conta:
+          type: string
+        digito_conta:
+          type: string
+        nome:
+          type: string
+        empresa:
+          type: string
+        saldo_inicial:
+          type: number
+        data_inicio:
+          type: string
+          format: date
+      required:
+        - tipo
+        - nome
+        - data_inicio
+
+    UpdateContaBancaria:
+      type: object
+      properties:
+        banco:
+          type: string
+        agencia:
+          type: string
+        nome:
+          type: string
+        empresa:
+          type: string
+
+    PlanoContaItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          enum: [receita, custo, despesa]
+        categoria:
+          type: string
+        subcategoria:
+          type: string
+        codigo:
+          type: string
+        ativo:
+          type: boolean
+      required:
+        - id
+        - tipo
+        - categoria
+
+    CreatePlanoContaItem:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [receita, custo, despesa]
+        categoria:
+          type: string
+        subcategoria:
+          type: string
+        codigo:
+          type: string
+      required:
+        - tipo
+        - categoria
+
+    UpdatePlanoContaItem:
+      type: object
+      properties:
+        categoria:
+          type: string
+        subcategoria:
+          type: string
+        ativo:
+          type: boolean
+
+    Meta:
+      type: object
+      properties:
+        id:
+          type: integer
+        plano_conta_id:
+          type: integer
+        ano:
+          type: integer
+        mes:
+          type: integer
+        valor_projetado:
+          type: number
+      required:
+        - id
+        - plano_conta_id
+        - ano
+        - mes
+        - valor_projetado
+
+    SaveMeta:
+      type: object
+      properties:
+        plano_conta_id:
+          type: integer
+        ano:
+          type: integer
+        mes:
+          type: integer
+        valor_projetado:
+          type: number
+      required:
+        - plano_conta_id
+        - ano
+        - mes
+        - valor_projetado
+
+    Conciliacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        conta_id:
+          type: integer
+        conta_nome:
+          type: string
+        conta_banco:
+          type: string
+        conta_agencia:
+          type: string
+        conta_numero:
+          type: string
+        periodo_inicio:
+          type: string
+          format: date
+        periodo_fim:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [pendente, conciliado]
+        total:
+          type: integer
+        conciliados:
+          type: integer
+        ignorados:
+          type: integer
+        pendentes:
+          type: integer
+        created_at:
+          type: string
+      required:
+        - id
+        - conta_id
+        - status
+
+    ConciliacaoListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Conciliacao"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - data
+        - total
+        - page
+        - limit
+
+    ItemConciliacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        conciliacao_id:
+          type: integer
+        lancamento_id:
+          type: integer
+        valor_extrato:
+          type: number
+        desconto:
+          type: number
+        acrescimo:
+          type: number
+        status:
+          type: string
+          enum: [pendente, vinculado, ignorado]
+        tipo_extrato:
+          type: string
+          enum: [debito, credito]
+        descricao:
+          type: string
+        data:
+          type: string
+          format: date
+      required:
+        - id
+        - valor_extrato
+        - status
+        - tipo_extrato
+
+    ConciliacaoDetail:
+      type: object
+      properties:
+        conciliacao:
+          $ref: "#/components/schemas/Conciliacao"
+        itens:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItemConciliacao"
+      required:
+        - conciliacao
+        - itens
+
+    VincularItemConciliacao:
+      type: object
+      properties:
+        lancamento_ids:
+          type: array
+          items:
+            type: integer
+        desconto:
+          type: number
+        acrescimo:
+          type: number
+        gerar_saldo_restante:
+          type: boolean
+      required:
+        - lancamento_ids
+
+    KanbanCard:
+      type: object
+      properties:
+        id:
+          type: integer
+        titulo:
+          type: string
+        descricao:
+          type: string
+        coluna:
+          type: string
+          enum: [solicitado, em_analise, em_execucao, aguardando_aprovacao, concluido]
+        responsavel_id:
+          type: integer
+        responsavel_nome:
+          type: string
+        prazo:
+          type: string
+          format: date
+        prioridade:
+          type: string
+          enum: [baixa, media, alta, urgente]
+        criado_por:
+          type: integer
+        created_at:
+          type: string
+        historico:
+          type: array
+          items:
+            $ref: "#/components/schemas/KanbanHistorico"
+      required:
+        - id
+        - titulo
+        - coluna
+        - prioridade
+
+    KanbanHistorico:
+      type: object
+      properties:
+        id:
+          type: integer
+        card_id:
+          type: integer
+        coluna_anterior:
+          type: string
+        coluna_nova:
+          type: string
+        comentario:
+          type: string
+        usuario_nome:
+          type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - created_at
+
+    CreateKanbanCard:
+      type: object
+      properties:
+        titulo:
+          type: string
+        descricao:
+          type: string
+        responsavel_id:
+          type: integer
+        prazo:
+          type: string
+          format: date
+        prioridade:
+          type: string
+          enum: [baixa, media, alta, urgente]
+      required:
+        - titulo
+        - prioridade
+
+    UpdateKanbanCard:
+      type: object
+      properties:
+        titulo:
+          type: string
+        descricao:
+          type: string
+        coluna:
+          type: string
+          enum: [solicitado, em_analise, em_execucao, aguardando_aprovacao, concluido]
+        responsavel_id:
+          type: integer
+        prazo:
+          type: string
+          format: date
+        prioridade:
+          type: string
+          enum: [baixa, media, alta, urgente]
+        comentario:
+          type: string
+
+    FechamentoMensalReport:
+      type: object
+      properties:
+        mes:
+          type: integer
+        ano:
+          type: integer
+        planejado_receber:
+          type: number
+        realizado_receber:
+          type: number
+        planejado_gastar:
+          type: number
+        realizado_gastar:
+          type: number
+        recebimentos:
+          type: array
+          items:
+            $ref: "#/components/schemas/FechamentoCategoria"
+        despesas:
+          type: array
+          items:
+            $ref: "#/components/schemas/FechamentoCategoria"
+      required:
+        - mes
+        - ano
+        - planejado_receber
+        - realizado_receber
+        - planejado_gastar
+        - realizado_gastar
+        - recebimentos
+        - despesas
+
+    FechamentoCategoria:
+      type: object
+      properties:
+        categoria:
+          type: string
+        planejado:
+          type: number
+        realizado:
+          type: number
+        percentual:
+          type: number
+      required:
+        - categoria
+        - planejado
+        - realizado
+        - percentual
+
+    DreReport:
+      type: object
+      properties:
+        ano:
+          type: integer
+        regime:
+          type: string
+        linhas:
+          type: array
+          items:
+            $ref: "#/components/schemas/DreLinhaReport"
+      required:
+        - ano
+        - regime
+        - linhas
+
+    DreLinhaReport:
+      type: object
+      properties:
+        descricao:
+          type: string
+        tipo:
+          type: string
+          enum: [header, categoria, total, subtotal]
+        valores:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              valor:
+                type: number
+              percentual:
+                type: number
+      required:
+        - descricao
+        - tipo
+        - valores
+
+    FluxoCaixaReport:
+      type: object
+      properties:
+        ano:
+          type: integer
+        secoes:
+          type: array
+          items:
+            $ref: "#/components/schemas/FluxoCaixaSecao"
+      required:
+        - ano
+        - secoes
+
+    FluxoCaixaSecao:
+      type: object
+      properties:
+        titulo:
+          type: string
+        tipo:
+          type: string
+          enum: [saldo_inicial, entradas, saidas, transferencias, total, saldo_final]
+        linhas:
+          type: array
+          items:
+            $ref: "#/components/schemas/FluxoCaixaLinha"
+      required:
+        - titulo
+        - tipo
+        - linhas
+
+    FluxoCaixaLinha:
+      type: object
+      properties:
+        descricao:
+          type: string
+        codigo:
+          type: string
+        valores:
+          type: object
+          additionalProperties:
+            type: number
+      required:
+        - descricao
+        - valores
+
+    MetasReport:
+      type: object
+      properties:
+        ano:
+          type: integer
+        recebimentos:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetasLinhaReport"
+        despesas:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetasLinhaReport"
+        resultado:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetasLinhaReport"
+      required:
+        - ano
+        - recebimentos
+        - despesas
+        - resultado
+
+    MetasLinhaReport:
+      type: object
+      properties:
+        categoria:
+          type: string
+        valores:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              previsto:
+                type: number
+              realizado:
+                type: number
+      required:
+        - categoria
+        - valores
+
+    ContabilFiscalItem:
+      type: object
+      properties:
+        conta_bancaria:
+          type: string
+        data:
+          type: string
+        descricao:
+          type: string
+        nome_parceiro:
+          type: string
+        valor:
+          type: number
+        categoria:
+          type: string
+        tipo:
+          type: string
+          enum: [CP, CR]
+      required:
+        - conta_bancaria
+        - data
+        - descricao
+        - valor
+        - tipo
+
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        celular:
+          type: string
+        bloqueado:
+          type: boolean
+        ultimo_acesso:
+          type: string
+        created_at:
+          type: string
+      required:
+        - id
+        - nome
+        - email
+        - bloqueado
+
+    CreateUsuario:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        celular:
+          type: string
+        senha:
+          type: string
+      required:
+        - nome
+        - email
+        - senha
+
+    UpdateUsuario:
+      type: object
+      properties:
+        nome:
+          type: string
+        telefone:
+          type: string
+        celular:
+          type: string
+        bloqueado:
+          type: boolean
+
+    UsuariosListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Usuario"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+      required:
+        - data
+        - total
+        - page
+        - limit
+
+    Filial:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+        - id
+        - nome
+
+    CreateFilial:
+      type: object
+      properties:
+        nome:
+          type: string
+      required:
+        - nome
+
+    UpdateFilial:
+      type: object
+      properties:
+        nome:
+          type: string
+
+    TokenApi:
+      type: object
+      properties:
+        id:
+          type: integer
+        descricao:
+          type: string
+        token:
+          type: string
+        data_expiracao:
+          type: string
+          format: date
+        ativo:
+          type: boolean
+        created_at:
+          type: string
+      required:
+        - id
+        - descricao
+        - ativo
+
+    CreateTokenApi:
+      type: object
+      properties:
+        descricao:
+          type: string
+        data_expiracao:
+          type: string
+          format: date
+        ativo:
+          type: boolean
+      required:
+        - descricao
+
+    UpdateTokenApi:
+      type: object
+      properties:
+        descricao:
+          type: string
+        data_expiracao:
+          type: string
+          format: date
+        ativo:
+          type: boolean
+
+    Departamento:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+        - id
+        - nome
+
+    CreateDepartamento:
+      type: object
+      properties:
+        nome:
+          type: string
+      required:
+        - nome
+
+    UpdateDepartamento:
+      type: object
+      properties:
+        nome:
+          type: string
+
+    CentroCusto:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        departamento_id:
+          type: integer
+      required:
+        - id
+        - nome
+
+    CreateCentroCusto:
+      type: object
+      properties:
+        nome:
+          type: string
+        departamento_id:
+          type: integer
+      required:
+        - nome
+
+    UpdateCentroCusto:
+      type: object
+      properties:
+        nome:
+          type: string
+        departamento_id:
+          type: integer

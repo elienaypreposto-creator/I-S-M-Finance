@@ -1,0 +1,22 @@
+packages:
+  "recharts": "For rendering all the financial dashboards and charts"
+  "@dnd-kit/core": "For Kanban board drag and drop"
+  "@dnd-kit/sortable": "For Kanban board column sorting"
+  "@dnd-kit/utilities": "For Kanban board drag and drop utilities"
+  "date-fns": "For formatting dates consistently across tables and forms"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility function to efficiently merge Tailwind CSS classes"
+  "lucide-react": "Icons"
+  "xlsx": "For exporting reports to Excel"
+  "jspdf": "For exporting reports to PDF"
+  "jspdf-autotable": "For table generation in PDF exports"
+
+images:
+  - path: "artifacts/ism-financeiro/public/images/auth-bg.png"
+    description: "Dark, premium abstract background with subtle deep blue and teal glowing mesh gradients, suitable for a financial SaaS login screen."
+    aspect_ratio: "16:9"
+
+notes:
+  - Assumes standard REST API patterns.
+  - The application is forced into dark mode per design requirements.
+  - Using mocked data fallbacks where API might return empty arrays to showcase the beautiful UI.

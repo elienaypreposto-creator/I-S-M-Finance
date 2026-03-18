@@ -1,8 +1,36 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import dashboardRouter from "./dashboard";
+import lancamentosRouter from "./lancamentos";
+import parceirosRouter from "./parceiros";
+import contasBancariasRouter from "./contas-bancarias";
+import planoContasRouter from "./plano-contas";
+import metasRouter from "./metas";
+import conciliacoesRouter from "./conciliacoes";
+import kanbanRouter from "./kanban";
+import relatoriosRouter from "./relatorios";
+import usuariosRouter from "./usuarios";
+import filiaisRouter from "./filiais";
+import tokensApiRouter from "./tokens-api";
+import departamentosRouter from "./departamentos";
+import v1Router from "./v1";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(dashboardRouter);
+router.use(lancamentosRouter);
+router.use(parceirosRouter);
+router.use(contasBancariasRouter);
+router.use(planoContasRouter);
+router.use(metasRouter);
+router.use(conciliacoesRouter);
+router.use(kanbanRouter);
+router.use(relatoriosRouter);
+router.use(usuariosRouter);
+router.use(filiaisRouter);
+router.use(tokensApiRouter);
+router.use(departamentosRouter);
+router.use("/v1", v1Router);
 
 export default router;

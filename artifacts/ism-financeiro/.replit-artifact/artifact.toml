@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ISM Tecnologia - Sistema Financeiro"
+version = "1.0.0"
+id = "artifacts/ism-financeiro"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 19437
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/ism-financeiro run dev"
+
+[services.env]
+PORT = "19437"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/ism-financeiro", "run", "build"]
+publicDir = "artifacts/ism-financeiro/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
