@@ -15,9 +15,9 @@ import {
   Tags,
   Landmark,
   Briefcase,
-  PieChart,
   LineChart,
   Wallet,
+  UserCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,7 +33,6 @@ import {
   SidebarMenuSubButton,
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
 
 const navItems = [
   { title: "Home", url: "/", icon: Home },
@@ -43,7 +42,7 @@ const navItems = [
 ];
 
 const cadastrosItems = [
-  { title: "Tipo Parceiro", url: "/cadastros/parceiros", icon: Users },
+  { title: "Clientes/Fornecedores", url: "/cadastros/parceiros", icon: UserCheck },
   { title: "Contas Bancárias", url: "/cadastros/contas-bancarias", icon: Landmark },
   { title: "Plano de Contas", url: "/cadastros/plano-contas", icon: Briefcase },
   { title: "Metas", url: "/cadastros/metas", icon: Target },
@@ -52,7 +51,7 @@ const cadastrosItems = [
 ];
 
 const relatoriosItems = [
-  { title: "Fechamento Mensal", url: "/relatorios/fechamento-mensal", icon: PieChart },
+  { title: "Fechamento Mensal", url: "/relatorios/fechamento-mensal", icon: Wallet },
   { title: "Contábil/Fiscal", url: "/relatorios/contabil-fiscal", icon: FileText },
   { title: "DRE Gerencial", url: "/relatorios/dre", icon: BarChart3 },
   { title: "Fluxo de Caixa", url: "/relatorios/fluxo-caixa", icon: LineChart },
@@ -78,7 +77,7 @@ export function AppSidebar() {
     <Sidebar variant="inset" className="border-r border-white/10 bg-sidebar">
       <SidebarHeader className="h-16 flex items-center justify-center border-b border-white/5">
         <div className="flex items-center gap-2 px-4 w-full">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20 shrink-0">
             IS
           </div>
           <span className="font-bold text-lg tracking-tight truncate flex-1 group-data-[collapsible=icon]:hidden">
@@ -86,7 +85,7 @@ export function AppSidebar() {
           </span>
         </div>
       </SidebarHeader>
-      <SidebarContent className="p-2 gap-2">
+      <SidebarContent className="p-2 gap-1">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>

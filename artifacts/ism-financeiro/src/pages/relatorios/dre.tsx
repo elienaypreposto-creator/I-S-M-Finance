@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
-import { Download, TrendingUp, TrendingDown } from "lucide-react";
+import { Download, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 type DreRow = { label: string; tipo: "titulo" | "item" | "subtotal" | "total"; valores: number[]; negativo?: boolean };
 
-const dreData: DreRow[] = [
+const dreCompetencia: DreRow[] = [
   { label: "RECEITA BRUTA", tipo: "titulo", valores: [] },
   { label: "Receita de Serviços", tipo: "item", valores: [118500, 131200, 127800, 132000, 139000, 143500, 0, 0, 0, 0, 0, 0] },
   { label: "Outras Receitas", tipo: "item", valores: [1200, 800, 1500, 900, 1100, 1200, 0, 0, 0, 0, 0, 0] },
@@ -30,9 +30,22 @@ const dreData: DreRow[] = [
   { label: "RESULTADO LÍQUIDO", tipo: "total", valores: [34288, 41380, 39395, 41162, 48011, 49725, 0, 0, 0, 0, 0, 0] },
 ];
 
+// Regime de Caixa: valores menores pois considera o que foi efetivamente pago/recebido
+const dreCaixa: DreRow[] = dreCompetencia.map(row => ({
+  ...row,
+  valores: row.valores.map((v, i) => {
+    if (v === 0) return 0;
+    const fator = [0.92, 0.95, 0.88, 0.93, 0.97, 1.02][i] ?? 1;
+    return Math.round(v * fator);
+  }),
+}));
+
 export default function DreGerencial() {
   const [ano, setAno] = useState(2024);
+  const [regime, setRegime] = useState<"competencia" | "caixa">("competencia");
   const mesAtual = 6;
+
+  const dreData = regime === "competencia" ? dreCompetencia : dreCaixa;
 
   const getRowStyle = (tipo: DreRow["tipo"]) => {
     switch (tipo) {
@@ -44,13 +57,16 @@ export default function DreGerencial() {
   };
 
   const getCellColor = (row: DreRow, val: number) => {
-    if (row.tipo === "titulo" || val === 0) return "text-muted-foreground/40";
+    if (row.tipo === "titulo" || val === 0) return "text-muted-foreground/30";
     if (row.tipo === "total" || row.tipo === "subtotal") return val >= 0 ? "text-success" : "text-destructive";
     if (row.negativo) return "text-destructive";
     return "text-white";
   };
 
   const totalAnual = (row: DreRow) => row.valores.reduce((a, b) => a + b, 0);
+  const rl = dreData.find(r => r.label === "RECEITA LÍQUIDA")!;
+  const lb = dreData.find(r => r.label === "LUCRO BRUTO")!;
+  const rs = dreData.find(r => r.label === "RESULTADO LÍQUIDO")!;
 
   return (
     <div className="space-y-6">
@@ -63,6 +79,14 @@ export default function DreGerencial() {
               <option value={2024}>2024</option>
               <option value={2023}>2023</option>
             </select>
+            <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
+              <button onClick={() => setRegime("competencia")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${regime === "competencia" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"}`}>
+                Regime de Competência
+              </button>
+              <button onClick={() => setRegime("caixa")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${regime === "caixa" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"}`}>
+                Regime de Caixa
+              </button>
+            </div>
             <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium transition-all">
               <Download className="w-4 h-4" /> Exportar XLSX
             </button>
@@ -70,11 +94,18 @@ export default function DreGerencial() {
         }
       />
 
+      {regime === "caixa" && (
+        <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-center gap-2 text-sm text-warning">
+          <span className="font-bold">ℹ</span>
+          <span>Regime de Caixa: exibe valores efetivamente recebidos/pagos. O Regime de Competência é a visão principal do sistema (lançamentos por vencimento).</span>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Receita Líquida Acum.", value: dreData.find(r => r.label === "RECEITA LÍQUIDA")!.valores.filter(v => v > 0).reduce((a, b) => a + b, 0), icon: <TrendingUp className="w-4 h-4" />, color: "text-teal-400" },
-          { label: "Lucro Bruto Acum.", value: dreData.find(r => r.label === "LUCRO BRUTO")!.valores.filter(v => v > 0).reduce((a, b) => a + b, 0), icon: <TrendingUp className="w-4 h-4" />, color: "text-primary" },
-          { label: "Resultado Líquido Acum.", value: dreData.find(r => r.label === "RESULTADO LÍQUIDO")!.valores.filter(v => v > 0).reduce((a, b) => a + b, 0), icon: <TrendingUp className="w-4 h-4" />, color: "text-success" },
+          { label: "Receita Líquida Acum.", value: rl.valores.filter(v => v > 0).reduce((a, b) => a + b, 0), icon: <TrendingUp className="w-4 h-4" />, color: "text-teal-400" },
+          { label: "Lucro Bruto Acum.", value: lb.valores.filter(v => v > 0).reduce((a, b) => a + b, 0), icon: <TrendingUp className="w-4 h-4" />, color: "text-primary" },
+          { label: "Resultado Líquido Acum.", value: rs.valores.filter(v => v > 0).reduce((a, b) => a + b, 0), icon: <TrendingUp className="w-4 h-4" />, color: "text-success" },
         ].map(item => (
           <div key={item.label} className="glass-panel rounded-2xl p-4">
             <div className="flex items-center gap-2 mb-1">
@@ -93,7 +124,7 @@ export default function DreGerencial() {
               <tr className="bg-white/5 border-b border-white/10">
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground sticky left-0 bg-card/90 backdrop-blur-sm min-w-[220px]">Descrição</th>
                 {meses.map((m, i) => (
-                  <th key={m} className={`px-3 py-3 text-right font-medium min-w-[90px] ${i < mesAtual ? 'text-white' : 'text-muted-foreground/40'}`}>{m}</th>
+                  <th key={m} className={`px-3 py-3 text-right font-medium min-w-[90px] ${i < mesAtual ? "text-white" : "text-muted-foreground/40"}`}>{m}</th>
                 ))}
                 <th className="px-4 py-3 text-right font-bold text-primary min-w-[110px]">Total</th>
               </tr>
@@ -101,7 +132,7 @@ export default function DreGerencial() {
             <tbody className="divide-y divide-white/5">
               {dreData.map((row, i) => (
                 <tr key={i} className={getRowStyle(row.tipo)}>
-                  <td className={`px-4 py-3 sticky left-0 backdrop-blur-sm ${row.tipo === 'titulo' ? 'bg-white/5' : row.tipo === 'total' ? 'bg-primary/10' : 'bg-card/60'}`}>
+                  <td className={`px-4 py-3 sticky left-0 backdrop-blur-sm ${row.tipo === "titulo" ? "bg-white/5" : row.tipo === "total" ? "bg-primary/10" : "bg-card/60"}`}>
                     {row.tipo === "item" ? <span className="pl-3">{row.label}</span> : row.label}
                   </td>
                   {row.tipo === "titulo" ? (
