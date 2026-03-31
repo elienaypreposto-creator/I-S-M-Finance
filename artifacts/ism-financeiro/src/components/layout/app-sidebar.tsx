@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import logoIsm from "@/assets/logo-ism.png";
 import {
   Home,
   Columns,
@@ -75,15 +76,10 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="inset" className="border-r border-white/10 bg-sidebar">
-      <SidebarHeader className="h-16 flex items-center justify-center border-b border-white/5">
-        <div className="flex items-center gap-2 px-4 w-full">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-bold text-white shadow-lg shadow-primary/20 shrink-0">
-            IS
-          </div>
-          <span className="font-bold text-lg tracking-tight truncate flex-1 group-data-[collapsible=icon]:hidden">
-            ISM Tecnologia
-          </span>
-        </div>
+      <SidebarHeader className="h-20 flex items-center justify-center border-b border-white/5 px-4 overflow-hidden">
+        <Link href="/" className="flex items-center justify-center w-full">
+          <img src={logoIsm} alt="ISM Tecnologia" className="h-[4.5rem] w-auto object-contain transition-transform hover:scale-105 duration-300" />
+        </Link>
       </SidebarHeader>
       <SidebarContent className="p-2 gap-1">
         <SidebarGroup>

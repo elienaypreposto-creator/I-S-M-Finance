@@ -143,6 +143,11 @@
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
   }
+  /* Force dark background for selects/dropdowns */
+  select, select option {
+    background-color: #1e1e2e;
+    color: #e8eaf0;
+  }
 }
 
 @layer utilities {

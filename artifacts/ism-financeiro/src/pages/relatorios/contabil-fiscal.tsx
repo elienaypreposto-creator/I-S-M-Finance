@@ -24,11 +24,16 @@ const impostos = [
 
 const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
+import { DateRangePicker } from "@/components/shared/date-range-picker";
+import { format, startOfYear, endOfYear } from "date-fns";
+
 export default function ContabilFiscal() {
   const [tab, setTab] = useState<"livro" | "impostos">("livro");
   const [tipoFiltro, setTipoFiltro] = useState<"todos" | "cr" | "cp">("todos");
-  const [mesFiltro, setMesFiltro] = useState("5"); // Junho (0-based: 5)
-  const [anoFiltro, setAnoFiltro] = useState("2024");
+  const [dateStart, setDateStart] = useState(format(startOfYear(new Date()), "yyyy-MM-dd"));
+  const [dateEnd, setDateEnd] = useState(format(endOfYear(new Date()), "yyyy-MM-dd"));
+  const mesFiltro = new Date(dateStart).getMonth();
+  const anoFiltro = new Date(dateStart).getFullYear();
 
   const filtrados = lancamentos.filter(l => tipoFiltro === "todos" || l.tipo === tipoFiltro);
 
@@ -66,12 +71,14 @@ export default function ContabilFiscal() {
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">Filtros:</span>
             </div>
-            <select value={mesFiltro} onChange={e => setMesFiltro(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none">
-              {meses.map((m, i) => <option key={i} value={String(i)}>{m}</option>)}
-            </select>
-            <select value={anoFiltro} onChange={e => setAnoFiltro(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none">
-              <option value="2024">2024</option><option value="2023">2023</option>
-            </select>
+            <DateRangePicker 
+              startDate={dateStart} 
+              endDate={dateEnd} 
+              onChange={(start, end) => {
+                setDateStart(start);
+                setDateEnd(end);
+              }}
+            />
             <div className="flex gap-1 p-1 bg-white/5 rounded-xl">
               {[["todos", "Todos"], ["cr", "A Receber"], ["cp", "A Pagar"]] .map(([v, l]) => (
                 <button key={v} onClick={() => setTipoFiltro(v as any)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${tipoFiltro === v ? "bg-primary text-white" : "text-muted-foreground hover:text-white"}`}>{l}</button>

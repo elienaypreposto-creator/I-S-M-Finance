@@ -1,14 +1,30 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { contasBancariasTable } from "@workspace/db/schema";
-import { eq, ilike } from "drizzle-orm";
+import { contasBancariasTable, lancamentosTable } from "@workspace/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 
 const router = Router();
 
 router.get("/contas-bancarias", async (req, res) => {
   try {
-    const items = await db.select().from(contasBancariasTable).orderBy(contasBancariasTable.nome);
-    res.json(items.map(i => ({ ...i, saldo_inicial: Number(i.saldo_inicial ?? 0), saldo_atual: Number(i.saldo_inicial ?? 0) })));
+    const items = await db
+      .select({
+        id: contasBancariasTable.id,
+        nome: contasBancariasTable.nome,
+        banco: contasBancariasTable.banco,
+        agencia: contasBancariasTable.agencia,
+        conta: contasBancariasTable.conta,
+        tipo: contasBancariasTable.tipo,
+        status: contasBancariasTable.status,
+        cor: contasBancariasTable.cor,
+        saldo_inicial: sql<number>`coalesce(${contasBancariasTable.saldo_inicial}::numeric, 0)`,
+        saldo_atual: sql<number>`coalesce(${contasBancariasTable.saldo_inicial}::numeric, 0) + coalesce(sum(case when ${lancamentosTable.tipo} = 'CR' then ${lancamentosTable.valor}::numeric else -${lancamentosTable.valor}::numeric end), 0)`
+      })
+      .from(contasBancariasTable)
+      .leftJoin(lancamentosTable, and(eq(lancamentosTable.conta_id, contasBancariasTable.id), sql`${lancamentosTable.status} IN ('pago', 'recebido')`))
+      .groupBy(contasBancariasTable.id)
+      .orderBy(contasBancariasTable.nome);
+    res.json(items);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

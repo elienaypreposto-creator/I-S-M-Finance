@@ -272,8 +272,13 @@ function ImportarModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+import { DateRangePicker } from "@/components/shared/date-range-picker";
+import { format, startOfYear, endOfYear } from "date-fns";
+
 export default function ConciliacaoList() {
   const [showImportar, setShowImportar] = useState(false);
+  const [dateStart, setDateStart] = useState(format(startOfYear(new Date()), "yyyy-MM-dd"));
+  const [dateEnd, setDateEnd] = useState(format(endOfYear(new Date()), "yyyy-MM-dd"));
 
   return (
     <div className="space-y-6">
@@ -283,9 +288,19 @@ export default function ConciliacaoList() {
         title="Conciliação Bancária"
         description="Importe extratos e concilie com seus lançamentos financeiros"
         actions={
-          <button onClick={() => setShowImportar(true)} className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success/90 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-success/25">
-            <Plus className="w-4 h-4" /> Importar Extrato
-          </button>
+          <div className="flex items-center gap-3">
+             <DateRangePicker 
+               startDate={dateStart} 
+               endDate={dateEnd} 
+               onChange={(start, end) => {
+                 setDateStart(start);
+                 setDateEnd(end);
+               }}
+             />
+             <button onClick={() => setShowImportar(true)} className="flex items-center gap-2 px-4 py-2 bg-success hover:bg-success/90 text-white rounded-xl text-sm font-medium transition-all shadow-lg shadow-success/25">
+               <Plus className="w-4 h-4" /> Importar Extrato
+             </button>
+          </div>
         }
       />
 

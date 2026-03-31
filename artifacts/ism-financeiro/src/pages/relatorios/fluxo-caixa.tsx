@@ -47,8 +47,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+import { DateRangePicker } from "@/components/shared/date-range-picker";
+import { format, startOfYear, endOfYear } from "date-fns";
+
 export default function FluxoCaixa() {
-  const [ano, setAno] = useState(2024);
+  const [dateStart, setDateStart] = useState(format(startOfYear(new Date()), "yyyy-MM-dd"));
+  const [dateEnd, setDateEnd] = useState(format(endOfYear(new Date()), "yyyy-MM-dd"));
+  const ano = new Date(dateStart).getFullYear();
 
   const getRowStyle = (tipo: FluxoRow["tipo"]) => {
     switch (tipo) {
@@ -66,10 +71,14 @@ export default function FluxoCaixa() {
         description="Demonstrativo de entradas e saídas financeiras"
         actions={
           <div className="flex gap-3">
-            <select value={ano} onChange={e => setAno(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none">
-              <option value={2024}>2024</option>
-              <option value={2023}>2023</option>
-            </select>
+            <DateRangePicker 
+              startDate={dateStart} 
+              endDate={dateEnd} 
+              onChange={(start, end) => {
+                setDateStart(start);
+                setDateEnd(end);
+              }}
+            />
             <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium transition-all">
               <Download className="w-4 h-4" /> Exportar XLSX
             </button>

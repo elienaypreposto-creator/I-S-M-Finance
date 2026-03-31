@@ -5,12 +5,7 @@ type StatusType =
   | "pago" 
   | "recebido" 
   | "atrasado" 
-  | "cancelado" 
-  | "conciliado"
-  | "ignorado"
-  | "vinculado"
-  | "ativo"
-  | "inativo";
+  | "cancelado";
 
 interface StatusBadgeProps {
   status: StatusType | string;

@@ -1,91 +1,59 @@
 import { useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDownRight, ArrowUpRight, AlertCircle, Clock, Download,
-  AlertTriangle, Gavel, FileX, ShieldAlert, Ban
+  AlertTriangle, Gavel, FileX, ShieldAlert, Ban, Loader2
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend
+  ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 
-const saldosContas = [
-  { banco: "Itaú CC", agencia: "1234", conta: "56789-0", saldo: 215430.50 },
-  { banco: "Bradesco CC", agencia: "4321", conta: "98765-4", saldo: 87200.00 },
-  { banco: "Nubank PJ", agencia: "0001", conta: "11223344-5", saldo: 42000.00 },
-];
-const totalSaldo = saldosContas.reduce((a, c) => a + c.saldo, 0);
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-const contasPagar = [
-  { id: 1, descricao: "AWS Cloud Services", parceiro: "Amazon Web Services", vencimento: "10/10/2023", valor: 4500, status: "vencido", diasAtraso: 165 },
-  { id: 2, descricao: "Materiais de Escritório", parceiro: "Office Supplies Ltda", vencimento: "20/10/2023", valor: 850, status: "vencido", diasAtraso: 155 },
-  { id: 3, descricao: "Serviços Dev", parceiro: "João Silva", vencimento: "25/10/2023", valor: 8000, status: "pendente", diasAtraso: 0 },
-  { id: 4, descricao: "Aluguel Outubro", parceiro: "Imobiliária Central", vencimento: "05/10/2023", valor: 3200, status: "pago", diasAtraso: 0 },
-];
+async function fetchApi<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`);
+  if (!res.ok) throw new Error(`Falha: ${path}`);
+  return res.json();
+}
 
-const contasReceber = [
-  { id: 1, descricao: "Mensalidade Outubro", parceiro: "Tech Solutions S.A.", vencimento: "15/10/2023", valor: 15000, status: "vencido", diasAtraso: 160 },
-  { id: 2, descricao: "Projeto Setup", parceiro: "Global Industries", vencimento: "05/10/2023", valor: 35000, status: "vencido", diasAtraso: 170 },
-  { id: 3, descricao: "Consultoria", parceiro: "Alpha Consultoria", vencimento: "30/10/2023", valor: 22000, status: "pendente", diasAtraso: 0 },
-  { id: 4, descricao: "Suporte TI", parceiro: "Inova Sistemas", vencimento: "28/10/2023", valor: 8500, status: "recebido", diasAtraso: 0 },
-];
+const PIE_COLORS = ["#6366F1", "#F59E0B", "#E74C3C", "#22C55E", "#3B82F6", "#EC4899"];
 
-const alertasAtraso = [
-  { id: 1, parceiro: "Tech Solutions S.A.", valor: 15000, diasAtraso: 160, riscos: ["Protesto", "Ação Judicial"], tipo: "cr" },
-  { id: 2, parceiro: "Global Industries", valor: 35000, diasAtraso: 170, riscos: ["Ação Judicial", "Bloqueio de Certidão"], tipo: "cr" },
-  { id: 3, parceiro: "Amazon Web Services", valor: 4500, diasAtraso: 165, riscos: ["Protesto"], tipo: "cp" },
-  { id: 4, parceiro: "Office Supplies Ltda", valor: 850, diasAtraso: 155, riscos: ["Impedimento de Certidão"], tipo: "cp" },
-];
-
-const diasAtrasoPorParceiro = alertasAtraso.map(a => ({ nome: a.parceiro.split(" ")[0], dias: a.diasAtraso, valor: a.valor }));
-
-const riscoData = [
-  { name: "Protesto", value: 2, color: "#E74C3C" },
-  { name: "Ação Judicial", value: 2, color: "#F39C12" },
-  { name: "Bloqueio Certidão", value: 1, color: "#E67E22" },
-  { name: "Impedimento Certidão", value: 1, color: "#8B5CF6" },
-];
-
-const fluxoCaixaData = [
-  { mes: "Jan", entradas: 120000, saidas: 90000 },
-  { mes: "Fev", entradas: 135000, saidas: 95000 },
-  { mes: "Mar", entradas: 140000, saidas: 105000 },
-  { mes: "Abr", entradas: 130000, saidas: 110000 },
-  { mes: "Mai", entradas: 155000, saidas: 98000 },
-  { mes: "Jun", entradas: 165000, saidas: 102000 },
-];
-
-const saidasPlanoContas = [
-  { name: "Folha PJ", value: 45000, color: "#3BA8DC" },
-  { name: "Fornecedores CSP", value: 25000, color: "#E67E22" },
-  { name: "Impostos", value: 15000, color: "#E74C3C" },
-  { name: "Despesas Admin", value: 10000, color: "#F39C12" },
-];
-
-const riskIcons: Record<string, React.ReactNode> = {
-  "Protesto": <Gavel className="w-3 h-3" />,
-  "Ação Judicial": <ShieldAlert className="w-3 h-3" />,
-  "Impedimento de Certidão": <FileX className="w-3 h-3" />,
-  "Bloqueio de Certidão": <Ban className="w-3 h-3" />,
-  "Bloqueios": <Ban className="w-3 h-3" />,
-};
-
-const riskColors: Record<string, string> = {
-  "Protesto": "bg-destructive/20 text-destructive border-destructive/30",
-  "Ação Judicial": "bg-orange-500/20 text-orange-400 border-orange-500/30",
-  "Impedimento de Certidão": "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  "Bloqueio de Certidão": "bg-warning/20 text-warning border-warning/30",
+const RISK_CONFIG: Record<string, { label: string; icon: React.ReactNode; cls: string }> = {
+  // Nível 1 - Alerta (1-15 dias): Amarelo / Laranja claro
+  "Multas e Juros": { label: "Multas e Juros", icon: <Clock className="w-3 h-3" />, cls: "bg-yellow-500/15 text-yellow-500 border-yellow-500/30" },
+  "Perda de Desconto": { label: "Perda de Desconto", icon: <ArrowUpRight className="w-3 h-3" />, cls: "bg-yellow-500/15 text-yellow-500 border-yellow-500/30" },
+  "Restrição de Crédito": { label: "Restrição de Crédito", icon: <AlertCircle className="w-3 h-3" />, cls: "bg-yellow-500/15 text-yellow-500 border-yellow-500/30" },
+  
+  // Nível 2 - Risco Operacional (16-30 dias): Laranja escuro
+  "Corte de Serviço": { label: "Corte de Serviço", icon: <FileX className="w-3 h-3" />, cls: "bg-orange-600/15 text-orange-500 border-orange-600/30" },
+  "Suspensão de Fornecimento": { label: "Suspensão de Fornecimento", icon: <Ban className="w-3 h-3" />, cls: "bg-orange-600/15 text-orange-500 border-orange-600/30" },
+  "Negativação": { label: "Negativação", icon: <AlertTriangle className="w-3 h-3" />, cls: "bg-orange-600/15 text-orange-500 border-orange-600/30" },
+  "Perda de Benefício Fiscal": { label: "Perda de Benefício Fiscal", icon: <FileX className="w-3 h-3" />, cls: "bg-orange-600/15 text-orange-500 border-orange-600/30" },
+  
+  // Nível 3 - Risco Jurídico (31-60 dias): Vermelho
+  "Protesto": { label: "Protesto", icon: <Gavel className="w-3 h-3" />, cls: "bg-red-500/15 text-red-500 border-red-500/30" },
+  "Ação Judicial": { label: "Ação Judicial", icon: <ShieldAlert className="w-3 h-3" />, cls: "bg-red-500/15 text-red-500 border-red-500/30" },
+  "Dívida Ativa": { label: "Dívida Ativa", icon: <FileX className="w-3 h-3" />, cls: "bg-red-500/15 text-red-500 border-red-500/30" },
+  "Quebra de Contrato": { label: "Quebra de Contrato", icon: <FileX className="w-3 h-3" />, cls: "bg-red-500/15 text-red-500 border-red-500/30" },
+  
+  // Nível 4 - Risco Crítico (> 60 dias): Roxo / Vinho
+  "Bloqueio de Contas (Sisbajud)": { label: "Bloqueio de Contas (Sisbajud)", icon: <Ban className="w-3 h-3" />, cls: "bg-purple-900/25 text-purple-400 border-purple-900/40" },
+  "Penhora de Bens": { label: "Penhora de Bens", icon: <Gavel className="w-3 h-3" />, cls: "bg-purple-900/25 text-purple-400 border-purple-900/40" },
+  "Pedido de Falência": { label: "Pedido de Falência", icon: <ShieldAlert className="w-3 h-3" />, cls: "bg-purple-900/25 text-purple-400 border-purple-900/40" },
+  "Impedimento de Certidão": { label: "Impedimento de Certidão", icon: <FileX className="w-3 h-3" />, cls: "bg-purple-900/25 text-purple-400 border-purple-900/40" },
 };
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-card/95 backdrop-blur-md border border-white/10 p-3 rounded-lg shadow-xl">
-        <p className="text-white font-medium mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} style={{ color: entry.color }} className="text-sm font-medium">
-            {entry.name}: {typeof entry.value === "number" && entry.value > 1000 ? formatCurrency(entry.value) : entry.value}
+        {label && <p className="text-white font-medium mb-2 text-xs">{label}</p>}
+        {payload.map((entry: any, i: number) => (
+          <p key={i} style={{ color: entry.color || entry.fill }} className="text-sm font-medium">
+            {entry.name}: {typeof entry.value === "number" && entry.value > 100 ? formatCurrency(entry.value) : entry.value}
           </p>
         ))}
       </div>
@@ -94,17 +62,154 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-type CpCrFilter = "todos" | "vencido" | "pendente" | "pago" | "recebido";
+function KPICard({ label, value, icon, color, sub }: { label: string; value: string; icon: React.ReactNode; color: string; sub?: string }) {
+  return (
+    <div className="glass-panel rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <span className={color}>{icon}</span>
+      </div>
+      <p className={`text-xl font-bold ${color}`}>{value}</p>
+      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+    </div>
+  );
+}
 
-export default function Dashboard() {
-  const [filterCP, setFilterCP] = useState<CpCrFilter>("todos");
-  const [filterCR, setFilterCR] = useState<CpCrFilter>("todos");
+function LoadingPanel({ h = 140 }: { h?: number }) {
+  return (
+    <div className="flex items-center justify-center" style={{ height: h }}>
+      <Loader2 className="w-6 h-6 animate-spin text-primary/40" />
+    </div>
+  );
+}
 
-  const filteredCP = filterCP === "todos" ? contasPagar : contasPagar.filter(c => c.status === filterCP);
-  const filteredCR = filterCR === "todos" ? contasReceber : contasReceber.filter(c => c.status === filterCR);
+type KPIs = { contasReceberAtraso: number; contasReceberAberto: number; contasPagarAberto: number; contasPagarAtraso: number; };
+type ProjecaoMes = { projecaoRecebimentos: number; projecaoPagamentos: number; projecaoLucroLiquido: number; };
+type Lancamento = { id: number; nome: string; valor: number; vencimento: string; };
+type AlertaRisco = { id: number; tipo: string; nome: string; dias: number; valor: number; riscos: string[]; };
+type FluxoMes = { mes: string; entradas: number; saidas: number; };
+type PlanoItem = { categoria: string; valor: number; percentual: number; };
+
+const STATUSES = [
+  { v: "todos", label: "Todos" },
+  { v: "pendente", label: "Pendente" },
+  { v: "pago", label: "Pago" },
+  { v: "recebido", label: "Recebido" },
+  { v: "atrasado", label: "Atrasado" },
+  { v: "cancelado", label: "Cancelado" },
+];
+
+function ContasPanel({ tipo, title, color, tab }: { tipo: "CP" | "CR"; title: string; color: "teal" | "orange"; tab: string }) {
+  const [status, setStatus] = useState("todos");
+
+  const endpoint = tipo === "CR"
+    ? `/dashboard/inadimplencia-clientes?tab=${tab}${status !== "todos" ? `&status=${status}` : ""}`
+    : `/dashboard/inadimplencia-fornecedores?tab=${tab}${status !== "todos" ? `&status=${status}` : ""}`;
+
+  const { data: items = [], isLoading } = useQuery<Lancamento[]>({
+    queryKey: [`dashboard-${tipo}`, status, tab],
+    queryFn: () => fetchApi(endpoint),
+  });
+
+  const colorMap = {
+    teal: { dot: "bg-teal-400", badge: "bg-teal-500/20 text-teal-300", header: "bg-teal-500/5", icon: "text-teal-400", val: "text-teal-300", icoCls: <ArrowDownRight className="w-4 h-4 text-teal-400" /> },
+    orange: { dot: "bg-orange-400", badge: "bg-orange-500/20 text-orange-300", header: "bg-orange-500/5", icon: "text-orange-400", val: "text-orange-300", icoCls: <ArrowUpRight className="w-4 h-4 text-orange-400" /> },
+  }[color];
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="glass-panel rounded-2xl overflow-hidden flex flex-col">
+      <div className={`p-3 border-b border-white/5 flex items-center gap-2 ${colorMap.header}`}>
+        {colorMap.icoCls}
+        <h3 className="font-bold text-white text-sm">{title}</h3>
+        <div className="ml-auto flex items-center gap-2">
+          <select value={status} onChange={e => setStatus(e.target.value)}
+            className="bg-white/5 border border-white/10 rounded-lg px-2 py-0.5 text-xs text-white outline-none">
+            {STATUSES.map(s => <option key={s.v} value={s.v}>{s.label}</option>)}
+          </select>
+          <span className={`text-xs ${colorMap.badge} px-2 py-0.5 rounded-full font-bold`}>
+            {isLoading ? "..." : items.length}
+          </span>
+        </div>
+      </div>
+      <div className="divide-y divide-white/5 flex-1 overflow-y-auto max-h-72">
+        {isLoading ? (
+          <LoadingPanel />
+        ) : items.length === 0 ? (
+          <p className="text-center text-muted-foreground text-xs py-8">Nenhum lançamento encontrado</p>
+        ) : (
+          items.slice(0, 8).map((c, i) => {
+            const diasAtraso = Math.floor((Date.now() - new Date(c.vencimento).getTime()) / 86400000);
+            return (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors">
+                <div className={`w-1.5 h-1.5 ${colorMap.dot} rounded-full shrink-0`} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{c.nome}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {diasAtraso > 0 ? `${diasAtraso}d em atraso · ` : ""}vcto {new Date(c.vencimento + "T00:00:00").toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+                <p className={`text-sm font-bold ${colorMap.val} shrink-0`}>
+                  {tipo === "CP" ? "- " : ""}{formatCurrency(c.valor)}
+                </p>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const [anoFluxo] = useState(new Date().getFullYear());
+
+  const { data: kpis, isLoading: kpisLoading } = useQuery<KPIs>({
+    queryKey: ["dashboard-kpis"],
+    queryFn: () => fetchApi("/dashboard/kpis"),
+    refetchInterval: 60000,
+  });
+
+  const { data: projecao } = useQuery<ProjecaoMes>({
+    queryKey: ["dashboard-projecao-mes"],
+    queryFn: () => fetchApi("/dashboard/projecao-mes"),
+  });
+
+  const { data: fluxoCaixa = [], isLoading: fluxoLoading } = useQuery<FluxoMes[]>({
+    queryKey: ["dashboard-fluxo", anoFluxo],
+    queryFn: () => fetchApi(`/dashboard/fluxo-caixa-mensal?ano=${anoFluxo}`),
+  });
+
+  const { data: alertasRisco = [] } = useQuery<AlertaRisco[]>({
+    queryKey: ["dashboard-nivel-risco"],
+    queryFn: () => fetchApi("/dashboard/nivel-risco"),
+  });
+
+  const { data: saidasPlano = [] } = useQuery<PlanoItem[]>({
+    queryKey: ["dashboard-saidas-plano"],
+    queryFn: () => fetchApi("/dashboard/saidas-plano-contas"),
+  });
+
+  const { data: entradasPlano = [] } = useQuery<PlanoItem[]>({
+    queryKey: ["dashboard-entradas-plano"],
+    queryFn: () => fetchApi("/dashboard/entradas-plano-contas"),
+  });
+
+  const [filterLevel, setFilterLevel] = useState<number | "all">("all");
+
+  const filteredAlertasRisco = alertasRisco.filter(a => {
+    if (a.tipo !== "CP") return false;
+    if (filterLevel === "all") return true;
+    
+    const d = a.dias || 0;
+    if (filterLevel === 1) return d >= 1 && d <= 15;
+    if (filterLevel === 2) return d >= 16 && d <= 30;
+    if (filterLevel === 3) return d >= 31 && d <= 60;
+    if (filterLevel === 4) return d > 60;
+    return true;
+  });
+
+  return (
+    <div className="space-y-5 pb-12">
       <PageHeader
         title="Painel de Controle"
         description="Visão geral financeira e indicadores da ISM Tecnologia"
@@ -117,234 +222,176 @@ export default function Dashboard() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: "Saldo Total Bancos", value: formatCurrency(totalSaldo), icon: <Clock className="w-5 h-5" />, color: "text-primary", trend: null },
-          { label: "A Receber em Aberto", value: formatCurrency(contasReceber.filter(c => c.status !== "recebido").reduce((a, b) => a + b.valor, 0)), icon: <ArrowDownRight className="w-5 h-5" />, color: "text-teal-400", trend: "+8%" },
-          { label: "A Pagar em Aberto", value: formatCurrency(contasPagar.filter(c => c.status !== "pago").reduce((a, b) => a + b.valor, 0)), icon: <ArrowUpRight className="w-5 h-5" />, color: "text-orange-400", trend: "-3%" },
-          { label: "Vencidos (CP+CR)", value: formatCurrency([...contasPagar, ...contasReceber].filter(c => c.status === "vencido").reduce((a, b) => a + b.valor, 0)), icon: <AlertCircle className="w-5 h-5" />, color: "text-destructive", trend: null },
-        ].map(kpi => (
-          <div key={kpi.label} className="glass-panel rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-muted-foreground">{kpi.label}</p>
-              <span className={kpi.color}>{kpi.icon}</span>
+        {kpisLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass-panel rounded-2xl p-5 animate-pulse">
+              <div className="h-3 bg-white/10 rounded mb-3 w-3/4" />
+              <div className="h-6 bg-white/10 rounded w-1/2" />
             </div>
-            <p className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</p>
-            {kpi.trend && <p className="text-xs text-muted-foreground mt-1">{kpi.trend} vs. último mês</p>}
-          </div>
-        ))}
+          ))
+        ) : (
+          <>
+            <KPICard label="A Receber (Mês Atual)" value={formatCurrency(kpis?.contasReceberAberto ?? 0)} icon={<ArrowDownRight className="w-5 h-5" />} color="text-teal-400"
+              sub={projecao ? `Projeção: ${formatCurrency(projecao.projecaoRecebimentos)}` : undefined} />
+            <KPICard label="A Pagar (Mês Atual)" value={formatCurrency(kpis?.contasPagarAberto ?? 0)} icon={<ArrowUpRight className="w-5 h-5" />} color="text-orange-400"
+              sub={projecao ? `Projeção: ${formatCurrency(projecao.projecaoPagamentos)}` : undefined} />
+            <KPICard label="CR Vencidos (A Receber)" value={formatCurrency(kpis?.contasReceberAtraso ?? 0)} icon={<AlertCircle className="w-5 h-5" />} color="text-destructive" />
+            <KPICard label="CP Vencidos (A Pagar)" value={formatCurrency(kpis?.contasPagarAtraso ?? 0)} icon={<Clock className="w-5 h-5" />} color="text-warning"
+              sub={projecao ? `Saldo líquido: ${formatCurrency(projecao.projecaoLucroLiquido)}` : undefined} />
+          </>
+        )}
       </div>
 
-      {/* Saldo das Contas + Tabelas CP/CR */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Saldo por Conta */}
-        <div className="glass-panel rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-white/5">
-            <h3 className="font-bold text-white text-sm">Saldo das Contas Bancárias</h3>
-          </div>
-          <table className="w-full text-sm">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Banco / Conta</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Saldo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {saldosContas.map((c, i) => (
-                <tr key={i} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-white text-xs">{c.banco}</p>
-                    <p className="text-[11px] text-muted-foreground">Ag: {c.agencia} | CC: {c.conta}</p>
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-primary text-sm">{formatCurrency(c.saldo)}</td>
-                </tr>
-              ))}
-              <tr className="bg-primary/5 border-t border-primary/20">
-                <td className="px-4 py-3 font-bold text-white text-xs">Total</td>
-                <td className="px-4 py-3 text-right font-bold text-primary">{formatCurrency(totalSaldo)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Contas a Pagar */}
-        <div className="glass-panel rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-white/5 flex items-center justify-between">
-            <h3 className="font-bold text-white text-sm">Contas a Pagar</h3>
-            <select value={filterCP} onChange={e => setFilterCP(e.target.value as CpCrFilter)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none">
-              <option value="todos">Todos</option>
-              <option value="vencido">Vencidos</option>
-              <option value="pendente">Pendentes</option>
-              <option value="pago">Pagos</option>
-            </select>
-          </div>
-          <table className="w-full text-sm">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Descrição</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Valor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredCP.map(c => (
-                <tr key={c.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="text-white text-xs font-medium">{c.descricao}</p>
-                    <p className="text-[11px] text-muted-foreground">{c.parceiro} · {c.vencimento}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${c.status === "vencido" ? "bg-destructive/20 text-destructive" : c.status === "pago" ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>
-                      {c.status === "vencido" ? `Vencido (${c.diasAtraso}d)` : c.status === "pago" ? "Pago" : "Pendente"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-destructive text-sm">{formatCurrency(c.valor)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Contas a Receber */}
-        <div className="glass-panel rounded-2xl overflow-hidden">
-          <div className="p-4 border-b border-white/5 flex items-center justify-between">
-            <h3 className="font-bold text-white text-sm">Contas a Receber</h3>
-            <select value={filterCR} onChange={e => setFilterCR(e.target.value as CpCrFilter)} className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-xs text-white outline-none">
-              <option value="todos">Todos</option>
-              <option value="vencido">Vencidos</option>
-              <option value="pendente">Pendentes</option>
-              <option value="recebido">Recebidos</option>
-            </select>
-          </div>
-          <table className="w-full text-sm">
-            <thead className="bg-white/5">
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Descrição</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Valor</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {filteredCR.map(c => (
-                <tr key={c.id} className="hover:bg-white/5 transition-colors">
-                  <td className="px-4 py-3">
-                    <p className="text-white text-xs font-medium">{c.descricao}</p>
-                    <p className="text-[11px] text-muted-foreground">{c.parceiro} · {c.vencimento}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${c.status === "vencido" ? "bg-destructive/20 text-destructive" : c.status === "recebido" ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}>
-                      {c.status === "vencido" ? `Vencido (${c.diasAtraso}d)` : c.status === "recebido" ? "Recebido" : "Pendente"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right font-bold text-teal-400 text-sm">{formatCurrency(c.valor)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Contas a Receber / Contas a Pagar com filtros */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <ContasPanel tipo="CR" title="Contas a Receber" color="teal" tab="vencidos" />
+        <ContasPanel tipo="CP" title="Contas a Pagar" color="orange" tab="vencidos" />
       </div>
 
-      {/* Alertas de Atraso / Risco */}
-      <div className="glass-panel rounded-2xl overflow-hidden border border-destructive/20">
-        <div className="p-4 border-b border-white/5 bg-destructive/5 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-destructive" />
-          <h3 className="font-bold text-white text-sm">Alertas de Inadimplência e Risco</h3>
-          <span className="ml-auto text-xs bg-destructive/20 text-destructive px-2 py-0.5 rounded-full font-bold">{alertasAtraso.length} ocorrências</span>
+      {/* Alertas de Inadimplência e Risco — 100% fiel ao modelo */}
+      <div className="glass-panel rounded-2xl overflow-hidden border border-destructive/20 shadow-xl shadow-destructive/5">
+        <div className="p-4 border-b border-white/5 bg-destructive/10 flex items-center gap-2">
+          <div className="p-1.5 bg-destructive/20 border border-destructive/30 rounded-lg">
+            <AlertTriangle className="w-4 h-4 text-destructive" />
+          </div>
+          <h3 className="font-bold text-white text-sm">Alertas de Inadimplência e Risco (Contas a Pagar)</h3>
+          <div className="ml-auto flex items-center gap-3">
+            <select 
+              value={filterLevel} 
+              onChange={e => setFilterLevel(e.target.value === "all" ? "all" : parseInt(e.target.value))}
+              className="bg-[#1a1c23] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-primary/50"
+            >
+              <option value="all">Todos Níveis</option>
+              <option value={1}>Nível 1 (1-15 dias)</option>
+              <option value={2}>Nível 2 (16-30 dias)</option>
+              <option value={3}>Nível 3 (31-60 dias)</option>
+              <option value={4}>Nível 4 (&gt; 60 dias)</option>
+            </select>
+            <span className="text-[10px] bg-destructive/20 text-destructive px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+              {filteredAlertasRisco.length} ocorrências
+            </span>
+          </div>
         </div>
         <div className="divide-y divide-white/5">
-          {alertasAtraso.map(a => (
-            <div key={a.id} className="flex items-center gap-4 px-5 py-3 hover:bg-white/5 transition-colors">
-              <div className={`w-2 h-2 rounded-full shrink-0 ${a.tipo === "cr" ? "bg-teal-400" : "bg-destructive"}`} />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white">{a.parceiro}</p>
-                <p className="text-xs text-muted-foreground">{a.tipo === "cr" ? "A Receber" : "A Pagar"} · {a.diasAtraso} dias em atraso</p>
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {a.riscos.map(r => (
-                  <span key={r} className={`text-[10px] px-2 py-0.5 rounded-full font-medium border flex items-center gap-1 ${riskColors[r] || "bg-white/10 text-white border-white/20"}`}>
-                    {riskIcons[r]} {r}
-                  </span>
-                ))}
-              </div>
-              <p className="text-sm font-bold text-destructive shrink-0">{formatCurrency(a.valor)}</p>
+          {filteredAlertasRisco.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 opacity-40">
+              <ShieldAlert className="w-12 h-12" />
+              <p className="text-center text-sm font-medium">Nenhum risco filtrado registrado</p>
             </div>
-          ))}
+          ) : (
+            filteredAlertasRisco.map((a) => (
+              <div key={a.id} className="flex items-center gap-4 px-6 py-4 hover:bg-white/[0.04] transition-all group border-l-2 border-transparent hover:border-l-destructive">
+                {/* Dot colorido: CP = vermelho */}
+                <div className={`w-2.5 h-2.5 rounded-full shrink-0 shadow-lg bg-destructive shadow-destructive/20`} />
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white group-hover:text-primary transition-colors">{a.nome || "Não identificado"}</p>
+                  <p className="text-xs text-secondary-foreground/60 mt-0.5">
+                    Contas a Pagar · {Math.max(0, a.dias || 0)} dias em atraso
+                  </p>
+                </div>
+
+                {/* Tags de risco */}
+                <div className="hidden md:flex flex-wrap gap-2 justify-end max-w-[40%]">
+                  {a.riscos?.map((r) => {
+                    const cfg = RISK_CONFIG[r] ?? { label: r, icon: <Ban className="w-3 h-3" />, cls: "bg-white/10 text-white border-white/20" };
+                    return (
+                      <span key={r} className={`text-[10px] px-2.5 py-1 rounded-full font-bold border flex items-center gap-1.5 ${cfg.cls} shadow-sm`}>
+                        {cfg.icon}
+                        <span className="uppercase tracking-tighter">{cfg.label}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Valor */}
+                <p className="text-sm font-black shrink-0 ml-4 text-orange-400 font-mono">
+                  {formatCurrency(a.valor)}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Gráficos de Atraso */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div className="glass-panel rounded-2xl p-5">
-          <h3 className="font-bold text-white text-sm mb-4">Dias em Atraso por Parceiro</h3>
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={diasAtrasoPorParceiro} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={22}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="nome" stroke="#ffffff50" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="#ffffff50" fontSize={11} tickLine={false} axisLine={false} unit="d" />
-                <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: "#ffffff05" }} />
-                <Bar dataKey="dias" name="Dias em Atraso" fill="#E74C3C" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="glass-panel rounded-2xl p-5">
-          <h3 className="font-bold text-white text-sm mb-4">Nível de Risco por Tipo</h3>
-          <div className="h-[220px] flex gap-4 items-center">
-            <div className="flex-1 h-full">
+      {/* Fluxo de Caixa Anual */}
+      <div className="glass-panel rounded-2xl p-5">
+        <h3 className="font-bold text-white text-sm mb-5">Fluxo de Caixa — {anoFluxo}</h3>
+        {fluxoLoading ? (
+          <LoadingPanel h={260} />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={riscoData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
-                    {riscoData.map((entry, index) => (
-                      <Cell key={index} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip content={<CustomTooltip />} />
-                </PieChart>
+                <BarChart data={fluxoCaixa} margin={{ top: 10, right: 0, left: 0, bottom: 0 }} barSize={16} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                  <XAxis dataKey="mes" stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#ffffff50" fontSize={11} tickLine={false} axisLine={false}
+                    tickFormatter={v => v >= 1000000 ? `R$${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `R$${(v / 1000).toFixed(0)}k` : `R$${v}`} />
+                  <RechartsTooltip cursor={{ fill: "#ffffff05" }} content={<CustomTooltip />} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
+                  <Bar dataKey="entradas" name="Recebimentos" fill="#27AE60" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="saidas" name="Pagamentos" fill="#E74C3C" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="space-y-2 shrink-0">
-              {riscoData.map(r => (
-                <div key={r.name} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: r.color }} />
-                  <span className="text-xs text-muted-foreground">{r.name}</span>
-                  <span className="text-xs font-bold text-white ml-auto pl-2">{r.value}</span>
+            <div className="h-[260px] flex flex-col">
+              <p className="text-xs text-center text-muted-foreground mb-2">Saídas por Categoria</p>
+              <div className="flex-1">
+                {saidasPlano.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground text-xs">Sem dados</div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={saidasPlano} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
+                        paddingAngle={4} dataKey="valor" nameKey="categoria" stroke="none">
+                        {saidasPlano.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                      </Pie>
+                      <RechartsTooltip content={<CustomTooltip />} />
+                      <Legend layout="vertical" verticalAlign="middle" align="right"
+                        wrapperStyle={{ fontSize: "10px", color: "#fff" }}
+                        formatter={(v: string) => v.length > 15 ? v.slice(0, 15) + "…" : v} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Tabelas de categorias laterais */}
+      {(entradasPlano.length > 0 || saidasPlano.length > 0) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div className="glass-panel rounded-2xl p-5">
+            <h3 className="font-bold text-white text-sm mb-4">Receitas por Categoria</h3>
+            <div className="space-y-2">
+              {entradasPlano.map((item, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className="text-xs text-white/70 flex-1 truncate">{item.categoria}</span>
+                  <span className="text-xs font-bold text-teal-300">{formatCurrency(item.valor)}</span>
+                  <span className="text-xs text-muted-foreground w-8 text-right">{item.percentual}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="glass-panel rounded-2xl p-5">
+            <h3 className="font-bold text-white text-sm mb-4">Despesas por Categoria</h3>
+            <div className="space-y-2">
+              {saidasPlano.map((item, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                  <span className="text-xs text-white/70 flex-1 truncate">{item.categoria}</span>
+                  <span className="text-xs font-bold text-orange-300">- {formatCurrency(item.valor)}</span>
+                  <span className="text-xs text-muted-foreground w-8 text-right">{item.percentual}%</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Visão Financeira Anual */}
-      <div className="glass-panel rounded-2xl p-5">
-        <h3 className="font-bold text-white text-sm mb-5">Fluxo de Caixa — Visão Anual</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={fluxoCaixaData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }} barSize={18} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
-                <XAxis dataKey="mes" stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#ffffff50" fontSize={12} tickLine={false} axisLine={false} tickFormatter={v => `R$${v / 1000}k`} />
-                <RechartsTooltip cursor={{ fill: "#ffffff05" }} content={<CustomTooltip />} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: "12px" }} />
-                <Bar dataKey="entradas" name="Entradas" fill="#27AE60" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="saidas" name="Saídas" fill="#E74C3C" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="h-[260px] flex flex-col">
-            <p className="text-xs text-center text-muted-foreground mb-2">Saídas por Categoria</p>
-            <div className="flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={saidasPlanoContas} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value" stroke="none">
-                    {saidasPlanoContas.map((entry, index) => (
-                      <Cell key={index} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip content={<CustomTooltip />} />
-                  <Legend layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: "11px", color: "#fff" }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

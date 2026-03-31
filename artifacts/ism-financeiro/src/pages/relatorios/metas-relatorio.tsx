@@ -61,16 +61,32 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+import { useState } from "react";
+import { DateRangePicker } from "@/components/shared/date-range-picker";
+import { format, startOfYear, endOfYear } from "date-fns";
+
 export default function MetasRelatorio() {
+  const [dateStart, setDateStart] = useState(format(startOfYear(new Date()), "yyyy-MM-dd"));
+  const [dateEnd, setDateEnd] = useState(format(endOfYear(new Date()), "yyyy-MM-dd"));
   return (
     <div className="space-y-6">
       <PageHeader
         title="Relatório de Metas"
         description="Acompanhamento de metas × realizado por categoria"
         actions={
-          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium transition-all">
-            <Download className="w-4 h-4" /> Exportar PDF
-          </button>
+          <div className="flex gap-3">
+            <DateRangePicker 
+              startDate={dateStart} 
+              endDate={dateEnd} 
+              onChange={(start, end) => {
+                setDateStart(start);
+                setDateEnd(end);
+              }}
+            />
+            <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium transition-all">
+              <Download className="w-4 h-4" /> Exportar PDF
+            </button>
+          </div>
         }
       />
 

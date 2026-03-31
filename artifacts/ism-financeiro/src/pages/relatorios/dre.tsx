@@ -40,8 +40,13 @@ const dreCaixa: DreRow[] = dreCompetencia.map(row => ({
   }),
 }));
 
+import { DateRangePicker } from "@/components/shared/date-range-picker";
+import { format, startOfYear, endOfYear } from "date-fns";
+
 export default function DreGerencial() {
-  const [ano, setAno] = useState(2024);
+  const [dateStart, setDateStart] = useState(format(startOfYear(new Date()), "yyyy-MM-dd"));
+  const [dateEnd, setDateEnd] = useState(format(endOfYear(new Date()), "yyyy-MM-dd"));
+  const ano = new Date(dateStart).getFullYear();
   const [regime, setRegime] = useState<"competencia" | "caixa">("competencia");
   const mesAtual = 6;
 
@@ -75,10 +80,14 @@ export default function DreGerencial() {
         description="Demonstração do Resultado do Exercício"
         actions={
           <div className="flex gap-3">
-            <select value={ano} onChange={e => setAno(Number(e.target.value))} className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none">
-              <option value={2024}>2024</option>
-              <option value={2023}>2023</option>
-            </select>
+            <DateRangePicker 
+              startDate={dateStart} 
+              endDate={dateEnd} 
+              onChange={(start, end) => {
+                setDateStart(start);
+                setDateEnd(end);
+              }}
+            />
             <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/10">
               <button onClick={() => setRegime("competencia")} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${regime === "competencia" ? "bg-primary text-white" : "text-muted-foreground hover:text-white"}`}>
                 Regime de Competência

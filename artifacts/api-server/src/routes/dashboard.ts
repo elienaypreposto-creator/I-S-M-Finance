@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { lancamentosTable, parceirosTable, contasBancariasTable } from "@workspace/db/schema";
+import { lancamentosTable, parceirosTable, planoContasTable } from "@workspace/db/schema";
 import { sql, and, gte, lte, eq, lt } from "drizzle-orm";
 
 const router = Router();
@@ -12,7 +12,7 @@ router.get("/dashboard/kpis", async (_req, res) => {
     const [contasReceberAtraso] = await db
       .select({ total: sql<number>`coalesce(sum(${lancamentosTable.valor}::numeric), 0)` })
       .from(lancamentosTable)
-      .where(and(eq(lancamentosTable.tipo, "CR"), lt(lancamentosTable.vencimento, hoje), eq(lancamentosTable.status, "pendente")));
+      .where(and(eq(lancamentosTable.tipo, "CR"), lt(lancamentosTable.vencimento, hoje), sql`${lancamentosTable.status} IN ('pendente', 'atrasado')`));
 
     const mesInicio = new Date();
     mesInicio.setDate(1);
@@ -23,7 +23,7 @@ router.get("/dashboard/kpis", async (_req, res) => {
       .from(lancamentosTable)
       .where(and(
         eq(lancamentosTable.tipo, "CR"),
-        eq(lancamentosTable.status, "pendente"),
+        sql`${lancamentosTable.status} IN ('pendente')`,
         gte(lancamentosTable.vencimento, mesInicio.toISOString().split("T")[0]),
         lte(lancamentosTable.vencimento, mesFim.toISOString().split("T")[0])
       ));
@@ -33,7 +33,7 @@ router.get("/dashboard/kpis", async (_req, res) => {
       .from(lancamentosTable)
       .where(and(
         eq(lancamentosTable.tipo, "CP"),
-        eq(lancamentosTable.status, "pendente"),
+        sql`${lancamentosTable.status} IN ('pendente')`,
         gte(lancamentosTable.vencimento, mesInicio.toISOString().split("T")[0]),
         lte(lancamentosTable.vencimento, mesFim.toISOString().split("T")[0])
       ));
@@ -41,7 +41,7 @@ router.get("/dashboard/kpis", async (_req, res) => {
     const [contasPagarAtraso] = await db
       .select({ total: sql<number>`coalesce(sum(${lancamentosTable.valor}::numeric), 0)` })
       .from(lancamentosTable)
-      .where(and(eq(lancamentosTable.tipo, "CP"), lt(lancamentosTable.vencimento, hoje), eq(lancamentosTable.status, "pendente")));
+      .where(and(eq(lancamentosTable.tipo, "CP"), lt(lancamentosTable.vencimento, hoje), sql`${lancamentosTable.status} IN ('pendente', 'atrasado')`));
 
     res.json({
       contasReceberAtraso: Number(contasReceberAtraso?.total ?? 0),
@@ -97,15 +97,37 @@ router.get("/dashboard/projecao-dias", async (req, res) => {
   try {
     const dias = parseInt(req.query.dias as string) || 30;
     const resultado = [];
+    
+    // Pega o saldo atual das contas
+    const [saldoAtual] = await db
+      .select({ total: sql<number>`coalesce(sum(case when tipo = 'CR' then ${lancamentosTable.valor}::numeric else -${lancamentosTable.valor}::numeric end), 0)` })
+      .from(lancamentosTable)
+      .where(sql`${lancamentosTable.status} IN ('pago', 'recebido')`);
+
+    let saldoAcumulado = Number(saldoAtual?.total ?? 0);
+
     for (let i = 0; i < dias; i++) {
       const d = new Date();
       d.setDate(d.getDate() + i);
       const dateStr = d.toISOString().split("T")[0];
+
+      const [movimentos] = await db
+        .select({
+          receber: sql<number>`coalesce(sum(case when tipo = 'CR' then ${lancamentosTable.valor}::numeric else 0 end), 0)`,
+          pagar: sql<number>`coalesce(sum(case when tipo = 'CP' then ${lancamentosTable.valor}::numeric else 0 end), 0)`
+        })
+        .from(lancamentosTable)
+        .where(and(eq(lancamentosTable.vencimento, dateStr), sql`${lancamentosTable.status} NOT IN ('cancelado')`));
+
+      const r = Number(movimentos?.receber ?? 0);
+      const p = Number(movimentos?.pagar ?? 0);
+      saldoAcumulado += (r - p);
+
       resultado.push({
         data: dateStr,
-        saldo: Math.random() * 50000 + 10000,
-        receber: Math.random() * 20000,
-        pagar: Math.random() * 15000,
+        saldo: saldoAcumulado,
+        receber: r,
+        pagar: p,
       });
     }
     res.json(resultado);
@@ -121,13 +143,13 @@ router.get("/dashboard/inadimplencia-clientes", async (req, res) => {
 
     let whereClause;
     if (tab === "vencidos") {
-      whereClause = and(eq(lancamentosTable.tipo, "CR"), lt(lancamentosTable.vencimento, hoje), eq(lancamentosTable.status, "pendente"));
+      whereClause = and(eq(lancamentosTable.tipo, "CR"), lt(lancamentosTable.vencimento, hoje), sql`${lancamentosTable.status} IN ('pendente', 'atrasado')`);
     } else if (tab === "proximos_vencer") {
       const proximos = new Date();
       proximos.setDate(proximos.getDate() + 7);
-      whereClause = and(eq(lancamentosTable.tipo, "CR"), gte(lancamentosTable.vencimento, hoje), lte(lancamentosTable.vencimento, proximos.toISOString().split("T")[0]), eq(lancamentosTable.status, "pendente"));
+      whereClause = and(eq(lancamentosTable.tipo, "CR"), gte(lancamentosTable.vencimento, hoje), lte(lancamentosTable.vencimento, proximos.toISOString().split("T")[0]), sql`${lancamentosTable.status} IN ('pendente')`);
     } else {
-      whereClause = and(eq(lancamentosTable.tipo, "CR"), lt(lancamentosTable.vencimento, hoje), eq(lancamentosTable.status, "pendente"));
+      whereClause = and(eq(lancamentosTable.tipo, "CR"), lt(lancamentosTable.vencimento, hoje), sql`${lancamentosTable.status} IN ('pendente', 'atrasado')`);
     }
 
     const items = await db
@@ -161,13 +183,13 @@ router.get("/dashboard/inadimplencia-fornecedores", async (req, res) => {
 
     let whereClause;
     if (tab === "vencidos") {
-      whereClause = and(eq(lancamentosTable.tipo, "CP"), lt(lancamentosTable.vencimento, hoje), eq(lancamentosTable.status, "pendente"));
+      whereClause = and(eq(lancamentosTable.tipo, "CP"), lt(lancamentosTable.vencimento, hoje), sql`${lancamentosTable.status} IN ('pendente', 'atrasado')`);
     } else if (tab === "proximos_vencer") {
       const proximos = new Date();
       proximos.setDate(proximos.getDate() + 7);
-      whereClause = and(eq(lancamentosTable.tipo, "CP"), gte(lancamentosTable.vencimento, hoje), lte(lancamentosTable.vencimento, proximos.toISOString().split("T")[0]), eq(lancamentosTable.status, "pendente"));
+      whereClause = and(eq(lancamentosTable.tipo, "CP"), gte(lancamentosTable.vencimento, hoje), lte(lancamentosTable.vencimento, proximos.toISOString().split("T")[0]), sql`${lancamentosTable.status} IN ('pendente')`);
     } else {
-      whereClause = and(eq(lancamentosTable.tipo, "CP"), lt(lancamentosTable.vencimento, hoje), eq(lancamentosTable.status, "pendente"));
+      whereClause = and(eq(lancamentosTable.tipo, "CP"), lt(lancamentosTable.vencimento, hoje), sql`${lancamentosTable.status} IN ('pendente', 'atrasado')`);
     }
 
     const items = await db
@@ -207,7 +229,7 @@ router.get("/dashboard/dias-atraso", async (_req, res) => {
       })
       .from(lancamentosTable)
       .leftJoin(parceirosTable, eq(lancamentosTable.parceiro_id, parceirosTable.id))
-      .where(and(lt(lancamentosTable.vencimento, hoje), eq(lancamentosTable.status, "pendente")))
+      .where(and(lt(lancamentosTable.vencimento, hoje), sql`${lancamentosTable.status} IN ('pendente', 'atrasado')`))
       .limit(10);
 
     res.json(items.map(i => ({
@@ -222,13 +244,36 @@ router.get("/dashboard/dias-atraso", async (_req, res) => {
 
 router.get("/dashboard/nivel-risco", async (_req, res) => {
   try {
-    const riscos = [
-      { tipo: "Protesto", quantidade: 3, valor: 15000 },
-      { tipo: "Ação Judicial", quantidade: 1, valor: 45000 },
-      { tipo: "Impedimento de Certidão", quantidade: 2, valor: 8000 },
-      { tipo: "Bloqueios", quantidade: 1, valor: 12000 },
-    ];
-    res.json(riscos);
+    const hoje = new Date().toISOString().split("T")[0];
+    const items = await db
+      .select({
+        id: lancamentosTable.id,
+        tipo: lancamentosTable.tipo,
+        vencimento: lancamentosTable.vencimento,
+        valor: lancamentosTable.valor,
+        riscos: lancamentosTable.riscos,
+        nome: parceirosTable.nome,
+        descricao: lancamentosTable.descricao,
+      })
+      .from(lancamentosTable)
+      .leftJoin(parceirosTable, eq(lancamentosTable.parceiro_id, parceirosTable.id))
+      .where(
+        and(
+          lt(lancamentosTable.vencimento, hoje),
+          eq(lancamentosTable.tipo, "CP"),
+          sql`${lancamentosTable.status} NOT IN ('cancelado', 'recebido')`
+        )
+      )
+      .limit(20);
+
+    res.json(items.map(i => ({
+      id: i.id,
+      tipo: i.tipo,
+      nome: i.nome || i.descricao || `Lançamento #${i.id}`,
+      dias: Math.floor((new Date(hoje).getTime() - new Date(i.vencimento).getTime()) / 86400000),
+      valor: Number(i.valor ?? 0),
+      riscos: i.riscos ?? [],
+    })));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -238,11 +283,33 @@ router.get("/dashboard/fluxo-caixa-mensal", async (req, res) => {
   try {
     const ano = parseInt(req.query.ano as string) || new Date().getFullYear();
     const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
-    const resultado = meses.map((mes, idx) => ({
-      mes,
-      entradas: Math.random() * 80000 + 20000,
-      saidas: Math.random() * 60000 + 15000,
-    }));
+
+    const rows = await db
+      .select({
+        mes: sql<number>`extract(month from ${lancamentosTable.vencimento}::date)`,
+        tipo: lancamentosTable.tipo,
+        total: sql<number>`coalesce(sum(${lancamentosTable.valor}::numeric), 0)`,
+      })
+      .from(lancamentosTable)
+      .where(
+        and(
+          sql`extract(year from ${lancamentosTable.vencimento}::date) = ${ano}`,
+          eq(lancamentosTable.status, sql`ANY(ARRAY['pago','recebido'])`)
+        )
+      )
+      .groupBy(
+        sql`extract(month from ${lancamentosTable.vencimento}::date)`,
+        lancamentosTable.tipo
+      )
+      .orderBy(sql`extract(month from ${lancamentosTable.vencimento}::date)`);
+
+    const resultado = meses.map((mes, idx) => {
+      const mesNum = idx + 1;
+      const entradas = rows.find(r => Number(r.mes) === mesNum && r.tipo === "CR")?.total ?? 0;
+      const saidas = rows.find(r => Number(r.mes) === mesNum && r.tipo === "CP")?.total ?? 0;
+      return { mes, entradas: Number(entradas), saidas: Number(saidas) };
+    });
+
     res.json(resultado);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -251,14 +318,26 @@ router.get("/dashboard/fluxo-caixa-mensal", async (req, res) => {
 
 router.get("/dashboard/saidas-plano-contas", async (_req, res) => {
   try {
-    const items = [
-      { categoria: "Despesas Administrativas", valor: 25000, percentual: 28 },
-      { categoria: "Pessoal e Encargos", valor: 35000, percentual: 39 },
-      { categoria: "Despesas de Ocupação", valor: 12000, percentual: 13 },
-      { categoria: "Despesas Financeiras", valor: 8000, percentual: 9 },
-      { categoria: "Impostos", valor: 10000, percentual: 11 },
-    ];
-    res.json(items);
+    const rows = await db
+      .select({
+        categoria: planoContasTable.categoria,
+        valor: sql<number>`coalesce(sum(${lancamentosTable.valor}::numeric), 0)`,
+      })
+      .from(lancamentosTable)
+      .leftJoin(planoContasTable, eq(lancamentosTable.plano_conta_id, planoContasTable.id))
+      .where(eq(lancamentosTable.tipo, "CP"))
+      .groupBy(planoContasTable.categoria)
+      .orderBy(sql`sum(${lancamentosTable.valor}::numeric) desc`)
+      .limit(6);
+
+    const total = rows.reduce((acc, r) => acc + Number(r.valor), 0);
+    const result = rows.map(r => ({
+      categoria: r.categoria ?? "Sem Categoria",
+      valor: Number(r.valor),
+      percentual: total > 0 ? Math.round((Number(r.valor) / total) * 100) : 0,
+    }));
+
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -266,13 +345,26 @@ router.get("/dashboard/saidas-plano-contas", async (_req, res) => {
 
 router.get("/dashboard/entradas-plano-contas", async (_req, res) => {
   try {
-    const items = [
-      { categoria: "Suporte Mensal (Fixa)", valor: 60000, percentual: 65 },
-      { categoria: "USTs e Treinamentos", valor: 20000, percentual: 22 },
-      { categoria: "Outras Entradas", valor: 8000, percentual: 9 },
-      { categoria: "Receitas Financeiras", valor: 4000, percentual: 4 },
-    ];
-    res.json(items);
+    const rows = await db
+      .select({
+        categoria: planoContasTable.categoria,
+        valor: sql<number>`coalesce(sum(${lancamentosTable.valor}::numeric), 0)`,
+      })
+      .from(lancamentosTable)
+      .leftJoin(planoContasTable, eq(lancamentosTable.plano_conta_id, planoContasTable.id))
+      .where(eq(lancamentosTable.tipo, "CR"))
+      .groupBy(planoContasTable.categoria)
+      .orderBy(sql`sum(${lancamentosTable.valor}::numeric) desc`)
+      .limit(6);
+
+    const total = rows.reduce((acc, r) => acc + Number(r.valor), 0);
+    const result = rows.map(r => ({
+      categoria: r.categoria ?? "Sem Categoria",
+      valor: Number(r.valor),
+      percentual: total > 0 ? Math.round((Number(r.valor) / total) * 100) : 0,
+    }));
+
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

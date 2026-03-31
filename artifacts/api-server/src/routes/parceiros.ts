@@ -7,14 +7,19 @@ const router = Router();
 
 router.get("/parceiros", async (req, res) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const offset = (page - 1) * limit;
-
     const conditions = [];
     if (req.query.search) conditions.push(ilike(parceirosTable.nome, `%${req.query.search}%`));
-
     const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // ?all=true para dropdowns (sem paginação)
+    if (req.query.all === "true") {
+      const items = await db.select().from(parceirosTable).where(where).orderBy(parceirosTable.nome);
+      return res.json(items);
+    }
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 25;
+    const offset = (page - 1) * limit;
 
     const [totalResult] = await db.select({ count: count() }).from(parceirosTable).where(where);
     const items = await db.select().from(parceirosTable).where(where).limit(limit).offset(offset).orderBy(parceirosTable.nome);
