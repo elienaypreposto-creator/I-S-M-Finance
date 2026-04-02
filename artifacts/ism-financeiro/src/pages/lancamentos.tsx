@@ -1,9 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { format as formatBtn, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   Plus, Search, Filter, Download,
   Loader2, AlertCircle, AlertTriangle, X, Calendar, Pencil, Trash2,
@@ -68,48 +72,58 @@ function getBankBadge(contaNome: string | null) {
   return { abbr: firstWord, color: "#94A3B8", bg: "rgba(148,163,184,0.15)" };
 }
 
-// Model de picker de competência (Mês/Ano)
-function CompetenciaPicker({ value, onChange, onClose }: { value: string; onChange: (v: string) => void; onClose: () => void }) {
-  const years = [2024, 2025, 2026, 2027];
+// Modal de picker de competência (Mês/Ano)
+function CompetenciaPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
   const months = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   const [currentYear, setCurrentYear] = useState(value && value.includes("/") ? parseInt(value.split("/")[1]) : new Date().getFullYear());
   const selectedMonthIdx = value && value.includes("/") ? parseInt(value.split("/")[0]) - 1 : -1;
 
   return (
-    <div className="absolute top-full left-0 z-50 mt-1 bg-[#1a1c23] border border-white/10 rounded-xl shadow-2xl p-4 w-72 animate-in">
-      <div className="flex items-center justify-between mb-4 px-1">
-        <button type="button" onClick={() => setCurrentYear(y => y - 1)} className="p-1 hover:bg-white/5 rounded text-white/50 hover:text-white transition-colors">
-          <ChevronLeft className="w-5 h-5" />
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button 
+          type="button" 
+          className="w-full bg-[#1a1c23] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white flex items-center justify-between hover:border-white/20 transition-all">
+          {value || "Selecione..."}
+          <CalendarDays className="w-4 h-4 text-muted-foreground" />
         </button>
-        <span className="text-sm font-bold text-white tracking-widest">{currentYear}</span>
-        <button type="button" onClick={() => setCurrentYear(y => y + 1)} className="p-1 hover:bg-white/5 rounded text-white/50 hover:text-white transition-colors">
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {months.map((m, i) => (
-          <button 
-            key={m} type="button" 
-            onClick={() => {
-              const monthStr = (i + 1).toString().padStart(2, '0');
-              onChange(`${monthStr}/${currentYear}`);
-              onClose();
-            }}
-            className={`px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-              selectedMonthIdx === i && value.includes(currentYear.toString())
-              ? "bg-primary text-white shadow-lg shadow-primary/30"
-              : "text-white/60 hover:bg-white/5 hover:text-white"
-            }`}>
-            {m}
+      </PopoverTrigger>
+      <PopoverContent align="start" className="bg-[#1a1c23] border border-white/10 rounded-xl shadow-2xl p-4 w-72">
+        <div className="flex items-center justify-between mb-4 px-1">
+          <button type="button" onClick={() => setCurrentYear(y => y - 1)} className="p-1 hover:bg-white/5 rounded text-white/50 hover:text-white transition-colors">
+            <ChevronLeft className="w-5 h-5" />
           </button>
-        ))}
-      </div>
-      <div className="flex justify-end mt-4 pt-3 border-t border-white/5">
-        <button type="button" onClick={onClose} className="px-4 py-1.5 bg-success hover:bg-success/90 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-success/20">
-          Close
-        </button>
-      </div>
-    </div>
+          <span className="text-sm font-bold text-white tracking-widest">{currentYear}</span>
+          <button type="button" onClick={() => setCurrentYear(y => y + 1)} className="p-1 hover:bg-white/5 rounded text-white/50 hover:text-white transition-colors">
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {months.map((m, i) => (
+            <button 
+              key={m} type="button" 
+              onClick={() => {
+                const monthStr = (i + 1).toString().padStart(2, '0');
+                onChange(`${monthStr}/${currentYear}`);
+                setOpen(false);
+              }}
+              className={`px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                selectedMonthIdx === i && value.includes(currentYear.toString())
+                ? "bg-primary text-white shadow-lg shadow-primary/30"
+                : "text-white/60 hover:bg-white/5 hover:text-white"
+              }`}>
+              {m}
+            </button>
+          ))}
+        </div>
+        <div className="flex justify-end mt-4 pt-3 border-t border-white/5">
+          <button type="button" onClick={() => setOpen(false)} className="px-4 py-1.5 bg-success hover:bg-success/90 text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-success/20">
+            Confirmar
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -136,8 +150,6 @@ function LancamentoModal({ onClose, onSaved, editItem }: { onClose: () => void; 
     nivelRisco: 0, // 0 = automatico ou manual
   });
 
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const competenciaRef = useRef<HTMLDivElement>(null);
   
   // Lógica de tags extendidas para a sessão
   const [riskLevels, setRiskLevels] = useState(BASE_RISK_LEVELS);
@@ -277,23 +289,33 @@ function LancamentoModal({ onClose, onSaved, editItem }: { onClose: () => void; 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className={labelCls}>Data de Vencimento *</label>
-                  <div className="relative">
-                    <input required type="date" value={form.vencimento} onChange={e => setForm(f => ({ ...f, vencimento: e.target.value }))} className={inputCls} />
-                    <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                  </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button 
+                        type="button"
+                        className={cn(inputCls, "flex items-center justify-between text-left font-normal", !form.vencimento && "text-muted-foreground/30")}
+                      >
+                        {form.vencimento ? formatBtn(parseISO(form.vencimento), "dd/MM/yyyy") : "Selecione uma data..."}
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 border border-white/10" align="start">
+                      <CalendarPicker
+                        mode="single"
+                        selected={form.vencimento ? parseISO(form.vencimento) : undefined}
+                        onSelect={(date) => setForm(f => ({ ...f, vencimento: date ? formatBtn(date, "yyyy-MM-dd") : "" }))}
+                        locale={ptBR}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                <div ref={competenciaRef} className="relative">
+                <div className="relative">
                   <label className={labelCls}>Mês de Competência</label>
-                  <button 
-                    type="button" 
-                    onClick={() => setDatePickerOpen(!datePickerOpen)}
-                    className="w-full bg-[#1a1c23] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white flex items-center justify-between hover:border-white/20 transition-all">
-                    {form.competencia || "Selecione..."}
-                    <CalendarDays className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                  {datePickerOpen && (
-                    <CompetenciaPicker value={form.competencia || ""} onChange={v => setForm(f => ({ ...f, competencia: v }))} onClose={() => setDatePickerOpen(false)} />
-                  )}
+                  <CompetenciaPicker 
+                    value={form.competencia || ""} 
+                    onChange={v => setForm(f => ({ ...f, competencia: v }))} 
+                  />
                 </div>
               </div>
 
